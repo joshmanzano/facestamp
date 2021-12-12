@@ -315,11 +315,15 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    gpu = args.gpu
-    run = args.run
+    try:
+        run = args.run
+    except:
+        run = 'main'
 
-    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    try:
+        gpu = str(args.gpu)
+    except:
+        gpu = str(2)
 
     def replace_args(base_args, new_args):
         for arg in new_args:
