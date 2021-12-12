@@ -21,13 +21,10 @@ import time
 from multiprocessing import Process
 
 import gc
-import nvidia_smi
 
 import cProfile
 from evaluate_stargan import run_stargan_eval
-
-nvidia_smi.nvmlInit()
-deviceCount = nvidia_smi.nvmlDeviceGetCount()
+import argparse
 
 def init_weights(m):
     if isinstance(m, torch.nn.Linear):
@@ -46,7 +43,7 @@ def checkpoint(encoder, decoder, args):
     torch.save(encoder.state_dict(), f'{args.checkpoints_path}encoder_current_{args.exp_name}')
     torch.save(decoder.state_dict(), f'{args.checkpoints_path}decoder_current_{args.exp_name}')
 
-def main(writer, args):
+def main(writer, args, gpu):
 
     dataset = Data('train', args.secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
     eval_dataset = Data('eval', args.secret_size, size=(args.im_height, args.im_width), dataset_size=int(args.dataset_size/16))
@@ -123,7 +120,7 @@ def main(writer, args):
 
     while(epoch < args.max_epochs):
         pbar = tqdm(dataloader)
-        pbar.set_description('eval_acc: %.2f, train_acc: %.2f, gpu_temp: %.2f, memory: %.2f' % (0,0,0,0))
+        pbar.set_description('eval_acc: %.2f, train_acc: %.2f, gpu_temp: %.2f' % (0,0,0))
         train_acc_arr = []
         for data in pbar:
             # train 
@@ -169,7 +166,6 @@ def main(writer, args):
 
             if(global_step % 10 == 0):
                 gpu_temp = int(utils.get_temperature().decode('utf-8').strip())
-                memory_util = utils.get_gpu_memory()
                 eval_acc = model.single_eval(encoder, decoder, channel_decoder, cos, orig_secret_input, secret_input, image_input, mask_input,
                         args, region_input)
                 if(eval_acc > 0.99):
@@ -178,9 +174,9 @@ def main(writer, args):
                 if(gpu_temp > 87):
                     time.sleep(1)
                 writer.add_scalar('summary/train_acc', train_acc, global_step)
-                # writer.add_scalar('summary/eval_acc', eval_acc, global_step)
+                writer.add_scalar('summary/eval_acc', eval_acc, global_step)
                 writer.add_scalar('misc/gpu_temp', gpu_temp, global_step)
-                pbar.set_description('eval_acc: %.2f, train_acc: %.2f, gpu_temp: %.2f, memory: %.2f' % (eval_acc.item(), train_acc.item(), gpu_temp, memory_util))
+                pbar.set_description('eval_acc: %.2f, train_acc: %.2f, gpu_temp: %.2f' % (eval_acc.item(), train_acc.item(), gpu_temp))
 
             # clear memory
             gc.collect()
@@ -313,34 +309,40 @@ def main(writer, args):
 
 if __name__ == '__main__':
 
+    parser = argparse.ArgumentParser(description='Specify GPU and run')
+    parser.add_argument('--gpu')
+    parser.add_argument('--run')
+
+    args = parser.parse_args()
+
+    gpu = args.gpu
+    run = args.run
+
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+
     def replace_args(base_args, new_args):
         for arg in new_args:
             base_args[arg] = new_args[arg]
         return base_args
 
-    runs = glob('cfg/runs/*.yaml')
 
-    def start_run(config):
-        log_path = os.path.join(config.logs_path, f'{config.verbose_exp_name} ({int(time.time())})')
-        writer = SummaryWriter(log_dir=log_path)
-        main(writer, config)
-        writer.close()
+    with open('cfg/base.yaml','r') as base_yaml:
+        base_args = EasyDict(yaml.load(base_yaml, Loader=yaml.SafeLoader))
+        with open(f'cfg/runs/{run}.yaml', 'r') as run_yaml:
+            run_args = EasyDict(yaml.load(run_yaml, Loader=yaml.SafeLoader))
+            args = replace_args(base_args, run_args)
 
-    for run in runs:
-        with open('cfg/base.yaml','r') as base_yaml:
-            base_args = EasyDict(yaml.load(base_yaml, Loader=yaml.SafeLoader))
-            with open(run, 'r') as run_yaml:
-                run_args = EasyDict(yaml.load(run_yaml, Loader=yaml.SafeLoader))
-                args = replace_args(base_args, run_args)
+            if not os.path.exists(args.checkpoints_path):
+                os.makedirs(args.checkpoints_path)
 
-                if not os.path.exists(args.checkpoints_path):
-                    os.makedirs(args.checkpoints_path)
+            if not os.path.exists(args.logs_path):
+                os.makedirs(args.logs_path)
 
-                if not os.path.exists(args.logs_path):
-                    os.makedirs(args.logs_path)
-
-                if not os.path.exists(args.encoded_path):
-                    os.makedirs(args.encoded_path)
-                
-                # start_run(args)
-                cProfile.run('start_run(args)','profiling_stats')
+            if not os.path.exists(args.encoded_path):
+                os.makedirs(args.encoded_path)
+            
+            log_path = os.path.join(args.logs_path, f'{args.verbose_exp_name} ({int(time.time())})')
+            writer = SummaryWriter(log_dir=log_path)
+            main(writer, args, int(gpu))
+            writer.close()
