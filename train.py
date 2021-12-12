@@ -165,7 +165,7 @@ def main(writer, args, gpu):
                 orig_secret_input = None
 
             if(global_step % 10 == 0):
-                gpu_temp = int(utils.get_temperature(gpu).decode('utf-8').strip())
+                gpu_temp = int(utils.get_temperature(gpu))
                 eval_acc = model.single_eval(encoder, decoder, channel_decoder, cos, orig_secret_input, secret_input, image_input, mask_input,
                         args, region_input)
                 if(eval_acc > 0.99):

@@ -163,15 +163,15 @@ def swap_face(image_input, faces, region_input):
         return trans_image_input 
 
 def get_temperature(gpu):
-    return subprocess.check_output(['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader'])
+    return subprocess.check_output(['nvidia-smi', '--query-gpu=temperature.gpu', '--format=csv,noheader']).decode('utf-8').strip().split('\n')[gpu].split()[0]
 
-def get_gpu_memory(gpu):
-    used = subprocess.check_output(['nvidia-smi', '--query-gpu=memory.used', '--format=csv,noheader']).decode('utf-8').strip('\n')[gpu]
-    used = used.split()[0]
-    total = subprocess.check_output(['nvidia-smi', '--query-gpu=memory.total', '--format=csv,noheader']).decode('utf-8').strip('\n')[gpu]
-    total = total.split()[0]
-    utilization = int(used) / int(total)
-    return 100 * utilization
+# def get_gpu_memory(gpu):
+#     used = subprocess.check_output(['nvidia-smi', '--query-gpu=memory.used', '--format=csv,noheader']).decode('utf-8').strip('\n')[gpu]
+#     used = used.split()[0]
+#     total = subprocess.check_output(['nvidia-smi', '--query-gpu=memory.total', '--format=csv,noheader']).decode('utf-8').strip('\n')[gpu]
+#     total = total.split()[0]
+#     utilization = int(used) / int(total)
+#     return 100 * utilization
 
 def process_test_data(performance):
     graph_data_mean = []
