@@ -1,0 +1,5 @@
+exp_name: no_adv_training
+verbose_exp_name: No Adversarial Training
+distortion_method: none
+
+

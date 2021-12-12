@@ -175,7 +175,6 @@ logs
 archived
 evaluate
 archive
-cfg
 periodic_checkpoints
 data/*
 StarGAN

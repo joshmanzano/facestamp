@@ -1,0 +1,4 @@
+exp_name: vanilla
+verbose_exp_name: No Channel Coding and No Adv Training
+channel_coding: False
+distortion_method: none

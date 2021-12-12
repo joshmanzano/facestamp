@@ -1,0 +1,4 @@
+exp_name: network_no_mask
+verbose_exp_name: Trained on Attack Network and No Mask
+distortion_method: network
+mask_residual: False

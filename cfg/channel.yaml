@@ -1,0 +1,31 @@
+
+train_path: './data/celebatrain'
+eval_path: './data/celebaeval'
+test_path: './data/celebatest'
+logs_path: "./channel_logs/"
+encoded_path: "./encoded/"
+checkpoints_path: './checkpoints/'
+saved_models: './saved_models'
+
+cuda: True
+load: False
+
+test_mode: True
+
+verbose: False
+exp_name: base
+verbose_exp_name: base
+attack_network: True
+dataset_size: 0
+output_save_interval: 100
+test_step_interval: 100
+checkpoint_interval: 20000
+im_height: 128 
+im_width: 128
+total_epoch: 30
+secret_size: 14
+num_steps: 10000
+batch_size: 512
+lr: 0.0001
+
+rounding_clipping: True

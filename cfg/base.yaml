@@ -1,0 +1,51 @@
+
+train_path: './data/celebatrain'
+eval_path: './data/celebaeval'
+test_path: './data/celebatest'
+logs_path: "./logs/"
+encoded_path: "./encoded/"
+checkpoints_path: './checkpoints/'
+periodic_checkpoints_path: './periodic_checkpoints/'
+saved_models: './saved_models'
+
+cuda: True
+load: False
+
+channel_coding: True
+channel_strength: '0.2'
+channel_encoder: './checkpoints/channel_encoder_current_0.2'
+channel_decoder: './checkpoints/channel_decoder_current_0.2'
+
+verbose: False
+exp_name: base
+verbose_exp_name: base
+mask_residual: True
+# test_adaptation: True
+# none, network, rw_distortion, all_distortion
+distortion_method: network
+dataset_size: 0
+output_save_interval: 100
+test_step_interval: 100
+checkpoint_interval: 20000
+im_height: 256 
+im_width: 256
+max_epochs: 10
+secret_size: 14
+batch_size: 8
+lr: 0.00001
+# lr: 0.0001
+adv_ramp: 0.1
+borders: 'white' # choices=['no_edge','black','random','randomrgb','image','white']
+
+# eval
+stargan_eval: False
+
+# loss weights
+eval_training: True
+l2_loss_weight: 1
+lpips_loss_weight: 1
+secret_loss_weight: 1
+adv_secret_loss_weight: 1
+residual_loss_weight : 1
+a1_weight: 1
+a2_weight: 1
