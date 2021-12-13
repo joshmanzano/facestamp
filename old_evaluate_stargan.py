@@ -94,13 +94,13 @@ def read_results(decoder, channel_decoder, device, channel_encoding):
                 decoded = utils.to_secret_string(decoded.squeeze())
                 result = utils.parse_string(decoded)
                 cur_img = transforms.ToPILImage()(cur_img)
-                cur_img.save('./encoded/temp.png')
+                img_name = utils.save_image(cur_img)
                 gt = utils.convert_secret(analysis[name_results[index][h]][0])
                 gt = ''.join([str(int(i)) for i in gt])
                 gt = utils.parse_string(gt)
                 results[file][h]['gt'] = gt
                 try:
-                    analyzed = utils.get_secret_string('./encoded/temp.png')[0]
+                    analyzed = utils.get_secret_string(img_name)[0]
                     analyzed = ''.join([str(int(i)) for i in analyzed])
                     analyzed = utils.parse_string(analyzed)
                     print(gt, analyzed, result)

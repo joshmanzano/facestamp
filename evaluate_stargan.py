@@ -63,9 +63,9 @@ def read_results(decoder, channel_decoder, device, channel_encoding):
                 if(w_start == 0):
                     cur_img = img[:,h_start: h_end, w_start: w_end]
                     cur_img = transforms.ToPILImage()(cur_img)
-                    cur_img.save('./encoded/temp.png')
+                    img_name = utils.save_image(cur_img)
 
-                    cur_img = Image.open('./encoded/temp.png')
+                    cur_img = Image.open(img_name)
                     cur_img = transforms.ToTensor()(cur_img)
                     cur_img = cur_img.cuda()
 
@@ -77,7 +77,7 @@ def read_results(decoder, channel_decoder, device, channel_encoding):
                     gt = utils.convert_secret(analysis[name_results[index][h]][0])
                     results[file][h]['gt'] = gt
                     try:
-                        analyzed, region = utils.get_secret_string('./encoded/temp.png')
+                        analyzed, region = utils.get_secret_string(img_name)
                     except Exception as e:
                         continue
                     gt = torch.Tensor(gt).cuda()

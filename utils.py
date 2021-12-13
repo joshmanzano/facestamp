@@ -12,12 +12,23 @@ import io
 import matplotlib.pyplot as plt
 import lpips
 import pandas as pd
+from multiprocessing import Lock
+
+lock = Lock()
 
 emotions = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
 races = ['asian', 'indian', 'black', 'white', 'middle eastern', 'latino hispanic']
 genders = ['Man', 'Woman']
 loss_fn = lpips.LPIPS(net='alex')
 loss_fn = loss_fn.cuda()
+
+def save_image(img):
+    lock.acquire()
+    num = int(time.time() * random.random()) 
+    img_name = f'{num}.png'
+    img.save(img_name)
+    lock.release()
+    return img_name
 
 def lpips_loss(first_image, second_image):
     first_image = (first_image - 0.5) * 2

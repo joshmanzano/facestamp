@@ -320,9 +320,9 @@ def eval_model(encoder, decoder, mse, channel_decoder, cos, image_input, mask_in
 
     for idx, enc_img in enumerate(encoded_image):
         img = transforms.ToPILImage()(enc_img)
-        img.save('/encoded/encoded.png')
+        img_name = utils.save_image(img)
         try:
-            analyzed_secret.append(utils.get_secret_string('/encoded/encoded.png')[0])
+            analyzed_secret.append(utils.get_secret_string(img_name)[0])
         except Exception as e:
             print(e)
             analyzed_secret.append(utils.random_secret(args.secret_size))

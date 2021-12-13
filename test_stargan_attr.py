@@ -88,8 +88,8 @@ def read_results():
                 gt = analysis[name_results[index][h]][0]
                 results[file][h]['gt'] = gt
                 try:
-                    (transforms.ToPILImage()(cur_img.squeeze())).save('/encoded/temp.png')
-                    analyzed = utils.get_secret('./encoded/temp.png')
+                    img_name = utils.save_image(transforms.ToPILImage()(cur_img.squeeze()))
+                    analyzed = utils.get_secret(img_name)
                 except Exception as e:
                     end_time = time.time()
                     run_time = end_time - start_time
