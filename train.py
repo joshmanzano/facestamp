@@ -120,7 +120,7 @@ def main(writer, args, gpu):
 
     while(epoch < args.max_epochs):
         pbar = tqdm(dataloader)
-        pbar.set_description('eval_acc: %.2f, train_acc: %.2f, gpu_temp: %.2f' % (0,0,0))
+        pbar.set_description('epoch %.2f, eval_acc: %.2f, train_acc: %.2f, gpu_temp: %.2f' % (0,0,0,0))
         train_acc_arr = []
         for data in pbar:
             # train 
@@ -144,7 +144,7 @@ def main(writer, args, gpu):
             loss, train_acc = model.build_model(encoder, decoder, channel_decoder, attacker, cos, mse, orig_secret_input, secret_input, image_input, mask_input, 
                     args, global_step, writer, region_input, epoch, all_losses)
             
-            train_acc_arr.append(train_acc.item())
+            train_acc_arr.append(train_acc.cpu().item())
 
             optimize_loss.zero_grad()
             loss.backward()
@@ -168,7 +168,7 @@ def main(writer, args, gpu):
                 gpu_temp = int(utils.get_temperature(gpu))
                 eval_acc = model.single_eval(encoder, decoder, channel_decoder, cos, orig_secret_input, secret_input, image_input, mask_input,
                         args, region_input)
-                if(eval_acc > 0.99):
+                if(not all_losses and eval_acc > 0.99):
                     print('All losses will now be applied.')
                     all_losses = True
                 if(gpu_temp > 87):
@@ -176,11 +176,11 @@ def main(writer, args, gpu):
                 writer.add_scalar('summary/train_acc', train_acc, global_step)
                 writer.add_scalar('summary/eval_acc', eval_acc, global_step)
                 writer.add_scalar('misc/gpu_temp', gpu_temp, global_step)
-                pbar.set_description('eval_acc: %.2f, train_acc: %.2f, gpu_temp: %.2f' % (eval_acc.item(), train_acc.item(), gpu_temp))
+                pbar.set_description('epoch: %.0f, eval_acc: %.2f, train_acc: %.2f, gpu_temp: %.2f' % (epoch, eval_acc.item(), train_acc.item(), gpu_temp))
 
             # clear memory
-            gc.collect()
-            torch.cuda.empty_cache()
+            # gc.collect()
+            # torch.cuda.empty_cache()
 
         checkpoint(encoder, decoder, args)
         periodic_checkpoint(encoder, decoder, args, epoch)
@@ -208,7 +208,7 @@ def main(writer, args, gpu):
                     secret_input, args, region_input)
 
             if(args.eval_training and all_losses):
-                test_losses.append(loss.item())
+                test_losses.append(loss.cpu().item())
                 optimize_loss.zero_grad()
                 loss.backward()
                 optimize_loss.step()
@@ -216,7 +216,7 @@ def main(writer, args, gpu):
             encoder.train()
             decoder.train()
             
-            test_performance.append(test_acc.item())
+            test_performance.append(test_acc.cpu().item())
 
         test_mean_data, test_std_data = utils.process_test_data(test_performance)
         writer.add_scalar('summary/test_acc', np.mean(test_mean_data), global_step)
@@ -324,6 +324,8 @@ if __name__ == '__main__':
         gpu = str(args.gpu)
     except:
         gpu = str(2)
+    
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpu
 
     def replace_args(base_args, new_args):
         for arg in new_args:

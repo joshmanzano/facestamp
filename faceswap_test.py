@@ -48,11 +48,11 @@ def create_encoded(sample_size, encoder, decoder, channel_encoder, channel_decod
         image_input = transforms.ToTensor()(Image.open(image))
         image_input = transforms.CenterCrop(min(image_input.shape[1],image_input.shape[2]))(image_input)
         image_input = transforms.Resize((size,size))(image_input)
-        (transforms.ToPILImage()(image_input)).save('/tmp/image.png')
+        (transforms.ToPILImage()(image_input)).save('/encoded/image.png')
 
-        image_input = transforms.ToTensor()(Image.open('/tmp/image.png'))
+        image_input = transforms.ToTensor()(Image.open('/encoded/image.png'))
         try:
-            secret_input, region_input = utils.get_secret_string('/tmp/image.png')
+            secret_input, region_input = utils.get_secret_string('/encoded/image.png')
         except:
             continue
         image_input = image_input[None]

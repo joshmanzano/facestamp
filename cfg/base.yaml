@@ -27,11 +27,11 @@ dataset_size: 0
 output_save_interval: 100
 test_step_interval: 100
 checkpoint_interval: 20000
-im_height: 400
-im_width: 400
+im_height: 256
+im_width: 256
 max_epochs: 10
 secret_size: 14
-batch_size: 8
+batch_size: 4
 lr: 0.00001
 # lr: 0.0001
 adv_ramp: 0.1
@@ -39,6 +39,7 @@ borders: 'white' # choices=['no_edge','black','random','randomrgb','image','whit
 
 # eval
 stargan_eval: False
+test_step: False
 
 # loss weights
 eval_training: True
