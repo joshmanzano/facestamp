@@ -1,3 +1,4 @@
+import os
 from deepface import DeepFace
 from PIL import Image, ImageDraw, ImageFont
 from torch.nn.modules import flatten
@@ -13,6 +14,24 @@ import matplotlib.pyplot as plt
 import lpips
 import pandas as pd
 from multiprocessing import Lock
+from glob import glob
+
+global run
+run = ''
+
+def set_run(name):
+    global run
+    run = name
+    try:
+        os.mkdir(f'./encoded/{run}')
+    except:
+        pass
+
+def clear_run_images():
+    global run
+    for f in glob(os.path.join(f'./encoded/{run}', '*')):
+        os.remove(f)
+
 
 lock = Lock()
 
@@ -22,10 +41,14 @@ genders = ['Man', 'Woman']
 loss_fn = lpips.LPIPS(net='alex')
 loss_fn = loss_fn.cuda()
 
+def get_lock():
+    return lock
+
 def save_image(img):
+    global run
     lock.acquire()
     num = int(time.time() * random.random()) 
-    img_name = f'{num}.png'
+    img_name = f'./encoded/{run}/{num}.png'
     img.save(img_name)
     lock.release()
     return img_name

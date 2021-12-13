@@ -302,8 +302,8 @@ def main(writer, args, gpu):
         print('avg_real_acc = %.2f (%.2f)' % (real_mean, real_std))
         print('avg_fake_acc = %.2f (%.2f)' % (fake_mean, fake_std))
 
-        for f in glob(os.path.join('encoded', '*')):
-            os.remove(f)
+        utils.clear_run_images()
+
 
     checkpoint(encoder, decoder, args)
 
@@ -323,7 +323,7 @@ if __name__ == '__main__':
     try:
         gpu = str(args.gpu)
     except:
-        gpu = str(2)
+        gpu = str(0)
     
     os.environ['CUDA_VISIBLE_DEVICES'] = gpu
 
@@ -349,6 +349,7 @@ if __name__ == '__main__':
                 os.makedirs(args.encoded_path)
             
             log_path = os.path.join(args.logs_path, f'{args.verbose_exp_name} ({int(time.time())})')
+            utils.set_run(args.exp_name)
             writer = SummaryWriter(log_dir=log_path)
             main(writer, args, int(gpu))
             writer.close()

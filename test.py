@@ -30,32 +30,13 @@ def tensor_similarity(inputs):
     tensor_similarity = cos(orig_secret_input, decoded_secret)
 
     return tensor_similarity.item()
-# def digital_similarity(inputs):
-#     image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder = inputs
-#     digital_image = transforms.ToPILImage()(encoded_image.squeeze())
-#     digital_image.save('./encoded/encoded.png')
 
-#     new_digital_image = Image.open('./encoded/encoded.png')
-#     new_digital_image = transforms.ToTensor()(new_digital_image)
-#     if(cuda):
-#         new_digital_image = new_digital_image.cuda()
-    
-#     decoded_secret = decoder(new_digital_image[None])
-
-#     if(channel_coding):
-#         decoded_secret = channel_decoder(decoded_secret)
-
-#     decoded_secret = torch.clip(decoded_secret, 0, 1)
-#     decoded_secret = torch.round(decoded_secret)
-
-#     digital_similarity = cos(orig_secret_input, decoded_secret) 
-#     return digital_similarity.item()
 def test_similarity(inputs):
     image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder = inputs
     digital_image = transforms.ToPILImage()(encoded_image.squeeze())
-    digital_image.save('./encoded/encoded.png')
+    img_name = utils.save_image(digital_image)
 
-    new_digital_image = Image.open('./encoded/encoded.png')
+    new_digital_image = Image.open(img_name)
     new_digital_image = transforms.ToTensor()(new_digital_image)
     if(cuda):
         new_digital_image = new_digital_image.cuda()
@@ -68,7 +49,7 @@ def test_similarity(inputs):
     decoded_secret = torch.clip(decoded_secret, 0, 1)
     decoded_secret = torch.round(decoded_secret)
 
-    analyzed_secret, region = utils.get_secret_string('./encoded/encoded.png')
+    analyzed_secret, region = utils.get_secret_string(img_name)
     analyzed_secret = torch.Tensor(analyzed_secret).cuda()[None]
 
     test_similarity = cos(analyzed_secret, decoded_secret) 
