@@ -21,7 +21,7 @@ input_path = './faceswap/data/test/fadg0'
 # input_path = './data/celebatest/images'
 output_path = './faceswap/data/test/fadg0-enc'
 swap_path = './faceswap/data/test/fadg0-enc-swap'
-size = 256
+size = 400
 
 cos = torch.nn.CosineSimilarity(dim=1)
 
@@ -31,16 +31,15 @@ def clear_previous():
         os.remove(file)
 
 def run_faceswap():
-    extract_cmd = '/home/luna/anaconda3/envs/facestamp/bin/python3 ./faceswap.py extract -i /home/luna/GitHub/machine-learning/facestamp-pytorch/faceswap/data/test/fadg0-enc -o /home/luna/GitHub/machine-learning/facestamp-pytorch/faceswap/data/test/fadg0-enc-extract -D s3fd -A fan -nm none -rf 0 -min 0 -l 0.4 -sz 512 -een 1 -si 0 -L INFO'
+    extract_cmd = '/home/luna/anaconda3/envs/facestamp/bin/python3 ./faceswap.py extract -i ./data/test/fadg0-enc -o ./data/test/fadg0-enc-extract -D s3fd -A fan -nm none -rf 0 -min 0 -l 0.4 -sz 512 -een 1 -si 0 -L INFO'
     convert_cmd = '/home/luna/anaconda3/envs/facestamp/bin/python3 ./faceswap.py convert -i ./data/test/fadg0-enc -o ./data/test/fadg0-enc-swap -al ./data/test/fadg0-enc/alignments.fsa -m ./data/f1_model -c avg-color -M extended -w opencv -osc 100 -l 0.4 -j 0 -L INFO'
 
     subprocess.run(extract_cmd, shell=True, cwd='./faceswap')
     subprocess.run(convert_cmd, shell=True, cwd='./faceswap')
 
-def create_encoded(sample_size, encoder, decoder, channel_encoder, channel_decoder, cache_secrets, channel_coding=True, cuda=True):
+def create_encoded(encoder, decoder, channel_encoder, channel_decoder, args, cache_secrets):
     images = glob(f'{input_path}/*')
     random.shuffle(images)
-    images = images[:sample_size]
     score = []
     for image in tqdm(images):
         path = Path(image)
@@ -59,13 +58,12 @@ def create_encoded(sample_size, encoder, decoder, channel_encoder, channel_decod
         secret_input = torch.Tensor(secret_input)[None]
         mask_input = utils.create_mask_input(image_input, region_input, region_transform=False)
 
-        if(cuda):
-            secret_input = secret_input.cuda()
-            image_input = image_input.cuda()
-            mask_input = mask_input.cuda()
+        secret_input = secret_input.cuda()
+        image_input = image_input.cuda()
+        mask_input = mask_input.cuda()
         cache_secrets[full_stem] = secret_input
         orig_secret_input = secret_input.clone().detach()
-        if(channel_coding):
+        if(args.channel_coding):
             secret_input = channel_encoder(secret_input)
         
         residual = encoder((secret_input, image_input, mask_input))
@@ -79,7 +77,8 @@ def create_encoded(sample_size, encoder, decoder, channel_encoder, channel_decod
         encoded_input = transforms.ToTensor()(Image.open(f'{output_path}/{full_stem}'))
         encoded_input = encoded_input.cuda()[None]
         decoded = decoder(encoded_input)
-        decoded = channel_decoder(decoded)
+        if(args.channel_coding):
+            decoded = channel_decoder(decoded)
         decoded = torch.round(torch.clip(decoded, 0, 1))
         similarity = cos(analyzed, decoded)
         score.append(similarity.item())
@@ -89,7 +88,7 @@ def create_encoded(sample_size, encoder, decoder, channel_encoder, channel_decod
     
     return score, cache_secrets
 
-def decode_swapped(decoder, channel_decoder, cache_secrets):
+def decode_swapped(decoder, channel_decoder, args, cache_secrets):
     images = glob(f'{swap_path}/*')
     match_score = []
     for image in tqdm(images):
@@ -103,18 +102,19 @@ def decode_swapped(decoder, channel_decoder, cache_secrets):
             continue
         analyzed = torch.Tensor(analyzed).cuda()[None]
         decoded = decoder(image_input[None])
-        decoded = channel_decoder(decoded)
+        if(args.channel_coding):
+            decoded = channel_decoder(decoded)
         decoded = torch.round(torch.clip(decoded, 0, 1))
         match_similarity = cos(analyzed, decoded)
         match_score.append(match_similarity.item())
     return match_score
 
-def faceswap_test(sample_size, encoder, decoder, channel_encoder, channel_decoder, results):
+def faceswap_test(encoder, decoder, channel_encoder, channel_decoder, args, results):
     cache_secrets = {}
     clear_previous()
-    pre_score, cache_secrets = create_encoded(sample_size, encoder, decoder, channel_encoder, channel_decoder, cache_secrets)
+    pre_score, cache_secrets = create_encoded(encoder, decoder, channel_encoder, channel_decoder, args, cache_secrets)
     results['preswap_match'] = np.mean(pre_score)
     run_faceswap()
-    swap_score = decode_swapped(decoder, channel_decoder, cache_secrets)
+    swap_score = decode_swapped(decoder, channel_decoder, args, cache_secrets)
     results['swap_match'] = np.mean(swap_score)
     return results

@@ -125,30 +125,30 @@ def get_class_accuracy(secret_input, decoded_secret):
 
         return class_similarity_avg, classes, age 
 
-# def create_mask_input(image_input, region_input, region_transform=True):
-#     with torch.no_grad():
-#         mask_input = torch.Tensor(size=(image_input.shape)).cuda()
+def create_mask_input(image_input, region_input, region_transform=True):
+    with torch.no_grad():
+        mask_input = torch.Tensor(size=(image_input.shape)).cuda()
 
-#         for idx, img in enumerate(image_input):
+        for idx, img in enumerate(image_input):
 
-#             if(region_transform):
-#                 region = []
-#                 for r in region_input:
-#                     region.append(r[idx].int())
-#             else:
-#                 region = region_input
+            if(region_transform):
+                region = []
+                for r in region_input:
+                    region.append(r[idx].int())
+            else:
+                region = region_input
             
-#             x = int(region[0])
-#             y = int(region[1])
-#             w = int(region[2])
-#             h = int(region[3])
+            x = int(region[0])
+            y = int(region[1])
+            w = int(region[2])
+            h = int(region[3])
 
-#             mask = torch.ones(image_input.shape[1], image_input.shape[2], image_input.shape[3]).cuda()
-#             mask[:,y:y+h,x:x+w] = 0
+            mask = torch.ones(image_input.shape[1], image_input.shape[2], image_input.shape[3]).cuda()
+            mask[:,y:y+h,x:x+w] = 0
 
-#             mask_input[idx] = mask 
+            mask_input[idx] = mask 
     
-#         return mask_input
+        return mask_input
 
 def extract_face(image_input, region_input):
     with torch.no_grad():

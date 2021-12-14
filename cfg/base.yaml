@@ -27,8 +27,8 @@ dataset_size: 0
 output_save_interval: 100
 test_step_interval: 100
 checkpoint_interval: 20000
-im_height: 256
-im_width: 256
+im_height: 400 
+im_width: 400
 max_epochs: 10
 secret_size: 14
 batch_size: 4

@@ -179,3 +179,4 @@ periodic_checkpoints
 data/*
 StarGAN
 faceswap
+channel_logs

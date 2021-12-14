@@ -15,6 +15,10 @@ import utils
 from torchvision import transforms
 from PIL import Image
 from faceswap_test import faceswap_test
+import argparse
+import os
+from easydict import EasyDict
+import yaml
 
 def tensor_similarity(inputs):
     image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder = inputs
@@ -55,22 +59,19 @@ def test_similarity(inputs):
     test_similarity = cos(analyzed_secret, decoded_secret) 
     return test_similarity.item()
 
-channel_coding = True
-secret_size = 14
 
-runs = ['main', 'rw_distortion']
-run_results = {}
-
-for run in runs:
+def start_testrun(args, run_results):
+    run = args.exp_name
+    secret_size = args.secret_size
+    channel_coding = args.channel_coding
+    im_size = args.im_height
     ch_enc = './checkpoints/channel_encoder_current_0.2'
     ch_dec = './checkpoints/channel_decoder_current_0.2'
     enc = f'./checkpoints/encoder_current_{run}'
     dec = f'./checkpoints/decoder_current_{run}'
     cuda = True
     mask_residual = True
-    sample_size = 100
-
-    dataset = Data('test',14,size=(128,128), dataset_size=sample_size)
+    dataset = Data('test',args.secret_size,size=(im_size,im_size))
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=0, pin_memory=True)
 
     cos = torch.nn.CosineSimilarity(dim=1)
@@ -88,17 +89,17 @@ for run in runs:
         scale_factor = 4
     else:
         scale_factor = 1
-        
-    encoder = model.EncoderNet(secret_size*scale_factor,128,128,mask_residual=mask_residual)
-    decoder = model.DecoderNet(secret_size*scale_factor,128,128)
+        channel_encoder = None
+        channel_decoder = None
+
+    encoder = model.EncoderNet(secret_size*scale_factor,im_size,im_size,mask_residual=mask_residual)
+    decoder = model.DecoderNet(secret_size*scale_factor,im_size,im_size)
     encoder.load_state_dict(torch.load(enc))
     decoder.load_state_dict(torch.load(dec))
     encoder.cuda()
     decoder.cuda()
     encoder.eval()
     decoder.eval()
-
-
 
     if(cuda):
         encoder = encoder.cuda()
@@ -109,40 +110,74 @@ for run in runs:
     secrets = []
     results = {} 
 
-    # for data in tqdm(dataloader):
-    #     image_input, mask_input, secret_input, region_input, name_input = data
+    for data in tqdm(dataloader):
+        image_input, mask_input, secret_input, region_input, name_input = data
 
-    #     if(cuda):
-    #         image_input = image_input.cuda()
-    #         secret_input = secret_input.cuda()
-    #         mask_input = mask_input.cuda()
+        if(cuda):
+            image_input = image_input.cuda()
+            secret_input = secret_input.cuda()
+            mask_input = mask_input.cuda()
 
-    #     orig_secret_input = secret_input.clone().detach()
-    #     if(channel_coding):
-    #         secret_input = channel_encoder(secret_input)
+        orig_secret_input = secret_input.clone().detach()
+        if(channel_coding):
+            secret_input = channel_encoder(secret_input)
 
-    #     # encoded_image = image_input + encoder((secret_input, image_input, mask_input))
-    #     residual = encoder((secret_input, image_input, mask_input))
-    #     encoded_image = torch.clip(image_input + residual, 0, 1)
+        # encoded_image = image_input + encoder((secret_input, image_input, mask_input))
+        residual = encoder((secret_input, image_input, mask_input))
+        encoded_image = torch.clip(image_input + residual, 0, 1)
 
-    #     inputs = image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder 
+        inputs = image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder 
 
-    #     tensor_score.append(tensor_similarity(inputs))
-    #     try:
-    #         test_score.append(test_similarity(inputs))
-    #     except Exception as e:
-    #         print(e)
-    #         continue
+        tensor_score.append(tensor_similarity(inputs))
+        try:
+            test_score.append(test_similarity(inputs))
+        except Exception as e:
+            print(e)
+            continue
 
-    # results['tensor_score'] = np.mean(tensor_score)
-    # results['test_score'] = np.mean(test_score)
-    results = faceswap_test(sample_size, encoder, decoder, channel_encoder, channel_decoder, results)
+    results['tensor_score'] = np.mean(tensor_score)
+    results['test_score'] = np.mean(test_score)
+    results = faceswap_test(encoder, decoder, channel_encoder, channel_decoder, args, results)
 
     run_results[run] = results
 
-for run in run_results:
-    print(run)
-    print(run_results[run])
+    return run_results
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Specify GPU and run')
+    parser.add_argument('--gpu')
+    parser.add_argument('--run')
+
+    args = parser.parse_args()
+
+    try:
+        gpu = str(args.gpu)
+    except:
+        gpu = str(0)
+    
+    os.environ['CUDA_VISIBLE_DEVICES'] = gpu
+
+    def replace_args(base_args, new_args):
+        for arg in new_args:
+            base_args[arg] = new_args[arg]
+        return base_args
+
+    run_results = {}
+
+    for run in glob('cfg/testing/*.yaml'):
+        with open('cfg/base.yaml','r') as base_yaml:
+            base_args = EasyDict(yaml.load(base_yaml, Loader=yaml.SafeLoader))
+            with open(run, 'r') as run_yaml:
+                run_args = EasyDict(yaml.load(run_yaml, Loader=yaml.SafeLoader))
+                args = replace_args(base_args, run_args)
+
+                utils.set_run(args.exp_name)
+                run_results = start_testrun(args, run_results)
+    
+    print(run_results)
+
+
 
 
 

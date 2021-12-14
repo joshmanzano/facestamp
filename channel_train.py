@@ -40,21 +40,20 @@ def main(writer, args, strength):
 
     encoder = model.ChannelEncoder(args.secret_size)
     decoder = model.ChannelDecoder(args.secret_size)
-    dataset = Data(args.train_path, args.secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
+    dataset = Data('train', args.secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
-    test_dataset = Data(args.test_path, args.secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
+    test_dataset = Data('test', args.secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
     test_dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     encoder.apply(init_weights)
     decoder.apply(init_weights)
 
     mse = torch.nn.MSELoss()
-    bce = torch.nn.BCELoss()
 
     if args.cuda:
         encoder = encoder.cuda()
         decoder = decoder.cuda()
-        cross_entropy = bce.cuda()
+        cross_entropy = mse.cuda()
 
     encoder.train()
     decoder.train()
@@ -79,7 +78,7 @@ def main(writer, args, strength):
         pbar = tqdm(dataloader)
         for step, data in enumerate(pbar):
             # train 
-            img_cover, secret, region, name = data
+            _, _, secret, _, _= data
             secret_input = secret
 
             if args.cuda:
@@ -88,7 +87,6 @@ def main(writer, args, strength):
             global_step += 1
 
             encoded = encoder(secret_input)
-
 
             noise_input = utils.channel_noise(encoded, strength, False)
 
@@ -126,13 +124,14 @@ def main(writer, args, strength):
             high_noise_acc = cos(secret_input, decoded_high_noise).mean()
             extreme_noise_acc = cos(secret_input, decoded_extreme_noise).mean() 
             clean_acc = cos(secret_input, decoded_no_noise).mean()
-            
+
             writer.add_scalar('eval_acc/low_noise',low_noise_acc, global_step)
             writer.add_scalar('eval_acc/medium_noise',medium_noise_acc, global_step)
             writer.add_scalar('eval_acc/high_noise',high_noise_acc, global_step)
             writer.add_scalar('eval_acc/extreme_noise',extreme_noise_acc, global_step)
             writer.add_scalar('eval_acc/clean',clean_acc, global_step)
-            
+
+
             encoder.train()
             decoder.train()
 
@@ -140,8 +139,8 @@ def main(writer, args, strength):
                 mean = torch.mean(encoded).item()
                 std = torch.std(encoded).item()
                 pbar.set_description('mean: %.2f, std: %.2f, clean: %.2f, low: %.2f, med: %.2f, high: %.2f' % (mean, std, clean_acc, low_noise_acc, medium_noise_acc, high_noise_acc))
-            if(step % 11 == 0):
-                pbar.set_description('%.2f -> %.2f' % (secret_input[0][0].item(), decoded_noise[0][0].item()))
+            # if(step % 11 == 0):
+            #     pbar.set_description('%.2f -> %.2f' % (secret_input[0][0].item(), decoded_noise[0][0].item()))
 
         checkpoint(encoder, decoder, args, strength)
         print(f'Epoch {epoch}: {clean_acc}')

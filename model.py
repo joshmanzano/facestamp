@@ -15,6 +15,12 @@ class ChannelDecoder(nn.Module):
     def __init__(self, secret_size):
         super().__init__()
         layers = nn.Sequential(
+            nn.Linear(100, secret_size * 6),
+            nn.ReLU(),
+            nn.Linear(secret_size * 6, secret_size * 5),
+            nn.ReLU(),
+            nn.Linear(secret_size * 5, secret_size * 4),
+            nn.ReLU(),
             nn.Linear(secret_size * 4, secret_size * 3),
             nn.ReLU(),
             nn.Linear(secret_size * 3, secret_size * 2),
@@ -37,6 +43,12 @@ class ChannelEncoder(nn.Module):
             nn.Linear(secret_size * 2, secret_size * 3),
             nn.ReLU(),
             nn.Linear(secret_size * 3, secret_size * 4),
+            nn.ReLU(),
+            nn.Linear(secret_size * 4, secret_size * 5),
+            nn.ReLU(),
+            nn.Linear(secret_size * 5, secret_size * 6),
+            nn.ReLU(),
+            nn.Linear(secret_size * 6, 100),
             nn.ReLU(),
         )
         self.main = layers

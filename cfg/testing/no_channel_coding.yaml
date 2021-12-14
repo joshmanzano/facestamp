@@ -1,0 +1,5 @@
+exp_name: no_channel_coding
+verbose_exp_name: No channel coding
+channel_coding: False
+
+
