@@ -27,23 +27,23 @@ def init_weights(m):
         torch.nn.init.xavier_uniform(m.weight)
         m.bias.data.fill_(0.01)
 
-def checkpoint(encoder, decoder, args, prob):
-    torch.save(encoder.state_dict(), f'{args.checkpoints_path}channel_encoder_current_{prob}')
-    torch.save(decoder.state_dict(), f'{args.checkpoints_path}channel_decoder_current_{prob}')
+def checkpoint(encoder, decoder, args, prob, name):
+    torch.save(encoder.state_dict(), f'{args.checkpoints_path}channel_encoder_{name}_{prob}')
+    torch.save(decoder.state_dict(), f'{args.checkpoints_path}channel_decoder_{name}_{prob}')
 
 def clip_round(tensor):
     tensor = torch.clip(tensor, 0, 1)
     tensor = torch.round(tensor)
     return tensor
 
-def main(writer, args, strength):
+def main(writer, args, strength, name):
 
     encoder = model.ChannelEncoder(args.secret_size)
     decoder = model.ChannelDecoder(args.secret_size)
-    dataset = Data('train', args.secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
-    test_dataset = Data('test', args.secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
-    test_dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
+    # dataset = Data('train', args.secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
+    # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
+    # test_dataset = Data('test', args.secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
+    # test_dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     encoder.apply(init_weights)
     decoder.apply(init_weights)
@@ -75,11 +75,11 @@ def main(writer, args, strength):
 
     while epoch < args.total_epoch:
         start_time = time.time()
-        pbar = tqdm(dataloader)
-        for step, data in enumerate(pbar):
+        pbar = tqdm(range(2000))
+        for step in pbar:
             # train 
-            _, _, secret, _, _= data
-            secret_input = secret
+            # _, _, secret, _, _= data
+            secret_input = torch.round(torch.rand((args.batch_size, 14)))
 
             if args.cuda:
                 secret_input = secret_input.cuda()
@@ -131,18 +131,17 @@ def main(writer, args, strength):
             writer.add_scalar('eval_acc/extreme_noise',extreme_noise_acc, global_step)
             writer.add_scalar('eval_acc/clean',clean_acc, global_step)
 
-
             encoder.train()
             decoder.train()
 
-            if(step % 5 == 0):
+            if(step % 20 == 0):
                 mean = torch.mean(encoded).item()
                 std = torch.std(encoded).item()
                 pbar.set_description('mean: %.2f, std: %.2f, clean: %.2f, low: %.2f, med: %.2f, high: %.2f' % (mean, std, clean_acc, low_noise_acc, medium_noise_acc, high_noise_acc))
             # if(step % 11 == 0):
             #     pbar.set_description('%.2f -> %.2f' % (secret_input[0][0].item(), decoded_noise[0][0].item()))
 
-        checkpoint(encoder, decoder, args, strength)
+        checkpoint(encoder, decoder, args, strength, name)
         print(f'Epoch {epoch}: {clean_acc}')
         end_time = time.time()
         time_taken = (end_time - start_time)
@@ -150,16 +149,17 @@ def main(writer, args, strength):
         writer.add_scalar('misc/time_taken', time_taken, epoch)
         epoch += 1
 
-    checkpoint(encoder, decoder, args, strength)
+    checkpoint(encoder, decoder, args, strength, name)
     print(f'Run with {strength} probability done.')
     print(f'{last_noise_acc} {last_clean_acc}')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('channel_strength')
+    parser.add_argument('name')
     cmd_args = parser.parse_args()
     with open('cfg/channel.yaml','r') as channel_yaml:
         args = EasyDict(yaml.load(channel_yaml, Loader=yaml.SafeLoader))
         # for prob in [float(i/10) for i in range(0, 10, 3)]:
-        writer = SummaryWriter(log_dir=f'./channel_logs/channel_training_{cmd_args.channel_strength}')
-        main(writer, args, float(cmd_args.channel_strength))
+        writer = SummaryWriter(log_dir=f'./channel_logs/channel_training_{cmd_args.name}_{cmd_args.channel_strength}')
+        main(writer, args, float(cmd_args.channel_strength), str(cmd_args.name))

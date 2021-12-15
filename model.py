@@ -12,22 +12,28 @@ import random
 from DiffJPEG import DiffJPEG
 
 class ChannelDecoder(nn.Module):
-    def __init__(self, secret_size):
+    def __init__(self, secret_size, model_size):
         super().__init__()
-        layers = nn.Sequential(
-            nn.Linear(100, secret_size * 6),
-            nn.ReLU(),
-            nn.Linear(secret_size * 6, secret_size * 5),
-            nn.ReLU(),
-            nn.Linear(secret_size * 5, secret_size * 4),
-            nn.ReLU(),
-            nn.Linear(secret_size * 4, secret_size * 3),
-            nn.ReLU(),
-            nn.Linear(secret_size * 3, secret_size * 2),
-            nn.ReLU(),
-            nn.Linear(secret_size * 2, secret_size),
-            nn.ReLU(),
-        )
+        if(model_size == 'small'):
+            layers = nn.Sequential(
+                nn.Linear(100, secret_size * 6),
+                nn.ReLU(),
+                nn.Linear(secret_size * 6, secret_size * 3),
+                nn.ReLU(),
+                nn.Linear(secret_size * 3, secret_size),
+                nn.ReLU(),
+            )
+        elif(model_size == 'big'):
+            layers = nn.Sequential(
+                nn.Linear(100, secret_size * 6),
+                nn.ReLU(),
+                nn.Linear(secret_size * 6, secret_size * 4),
+                nn.ReLU(),
+                nn.Linear(secret_size * 4, secret_size * 2),
+                nn.ReLU(),
+                nn.Linear(secret_size * 2, secret_size),
+                nn.ReLU(),
+            )
         self.main = layers
 
     def forward(self, secret):
@@ -35,22 +41,28 @@ class ChannelDecoder(nn.Module):
         return output
 
 class ChannelEncoder(nn.Module):
-    def __init__(self, secret_size):
+    def __init__(self, secret_size, model_size):
         super().__init__()
-        layers = nn.Sequential(
-            nn.Linear(secret_size, secret_size * 2),
-            nn.ReLU(),
-            nn.Linear(secret_size * 2, secret_size * 3),
-            nn.ReLU(),
-            nn.Linear(secret_size * 3, secret_size * 4),
-            nn.ReLU(),
-            nn.Linear(secret_size * 4, secret_size * 5),
-            nn.ReLU(),
-            nn.Linear(secret_size * 5, secret_size * 6),
-            nn.ReLU(),
-            nn.Linear(secret_size * 6, 100),
-            nn.ReLU(),
-        )
+        if(model_size == 'small'):
+            layers = nn.Sequential(
+                nn.Linear(secret_size, secret_size * 3),
+                nn.ReLU(),
+                nn.Linear(secret_size * 3, secret_size * 6),
+                nn.ReLU(),
+                nn.Linear(secret_size * 6, 100),
+                nn.ReLU(),
+            )
+        elif(model_size == 'big'):
+            layers = nn.Sequential(
+                nn.Linear(secret_size, secret_size * 2),
+                nn.ReLU(),
+                nn.Linear(secret_size * 2, secret_size * 4),
+                nn.ReLU(),
+                nn.Linear(secret_size * 4, secret_size * 6),
+                nn.ReLU(),
+                nn.Linear(secret_size * 6, 100),
+                nn.ReLU(),
+            )
         self.main = layers
 
     def forward(self, secret):

@@ -13,8 +13,8 @@ load: False
 
 channel_coding: True
 channel_strength: '0.2'
-channel_encoder: './checkpoints/channel_encoder_current_0.2'
-channel_decoder: './checkpoints/channel_decoder_current_0.2'
+channel_encoder: './checkpoints/channel_encoder_s22'
+channel_decoder: './checkpoints/channel_decoder_s22'
 
 verbose: False
 exp_name: base
@@ -27,10 +27,11 @@ dataset_size: 0
 output_save_interval: 100
 test_step_interval: 100
 checkpoint_interval: 20000
-im_height: 400 
+im_height: 400
 im_width: 400
 max_epochs: 10
-secret_size: 14
+small_secret_size: 14
+secret_size: 100
 batch_size: 4
 lr: 0.00001
 # lr: 0.0001

@@ -45,9 +45,9 @@ def checkpoint(encoder, decoder, args):
 
 def main(writer, args, gpu):
 
-    dataset = Data('train', args.secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
-    eval_dataset = Data('eval', args.secret_size, size=(args.im_height, args.im_width), dataset_size=int(args.dataset_size/16))
-    test_dataset = Data('test', args.secret_size, size=(args.im_height, args.im_width), dataset_size=int(args.dataset_size/16))
+    dataset = Data('train', args.small_secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
+    eval_dataset = Data('eval', args.small_secret_size, size=(args.im_height, args.im_width), dataset_size=int(args.dataset_size/16))
+    test_dataset = Data('test', args.small_secret_size, size=(args.im_height, args.im_width), dataset_size=int(args.dataset_size/16))
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
     eval_dataloader = DataLoader(eval_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
     test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0, pin_memory=True)
@@ -55,8 +55,8 @@ def main(writer, args, gpu):
     channel_decoder = None
 
     if(args.channel_coding):
-        channel_encoder = model.ChannelEncoder(args.secret_size)
-        channel_decoder = model.ChannelDecoder(args.secret_size)
+        channel_encoder = model.ChannelEncoder(args.small_secret_size, 'small')
+        channel_decoder = model.ChannelDecoder(args.small_secret_size, 'small')
         channel_encoder.load_state_dict(torch.load(args.channel_encoder))
         channel_decoder.load_state_dict(torch.load(args.channel_decoder))
         channel_encoder.eval()
@@ -64,9 +64,6 @@ def main(writer, args, gpu):
         if(args.cuda):
             channel_encoder = channel_encoder.cuda()
             channel_decoder = channel_decoder.cuda()
-        scale_factor = 4
-    else:
-        scale_factor = 1
     
     if(args.distortion_method == 'network'):
         attacker = model.AttackNet(args.im_height,args.im_width)
@@ -77,8 +74,8 @@ def main(writer, args, gpu):
     else:
         attacker = None
 
-    encoder = model.EncoderNet(args.secret_size*scale_factor,args.im_height,args.im_width,mask_residual=args.mask_residual)
-    decoder = model.DecoderNet(args.secret_size*scale_factor,args.im_height,args.im_width)
+    encoder = model.EncoderNet(args.secret_size,args.im_height,args.im_width,mask_residual=args.mask_residual)
+    decoder = model.DecoderNet(args.secret_size,args.im_height,args.im_width)
 
     encoder.apply(init_weights)
     decoder.apply(init_weights)
