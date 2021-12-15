@@ -349,7 +349,7 @@ def eval_model(encoder, decoder, mse, channel_decoder, cos, image_input, mask_in
             analyzed_secret.append(utils.get_secret_string(img_name)[0])
         except Exception as e:
             print(e)
-            analyzed_secret.append(utils.random_secret(args.secret_size))
+            analyzed_secret.append(utils.random_secret(args.small_secret_size))
 
     analyzed_secret = torch.Tensor(analyzed_secret).cuda()
 
