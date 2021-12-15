@@ -33,7 +33,7 @@ max_epochs: 10
 small_secret_size: 14
 secret_size: 100
 batch_size: 8
-workers: 8
+workers: 0
 lr: 0.00001
 # lr: 0.0001
 adv_ramp: 0.1
