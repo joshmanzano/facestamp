@@ -45,9 +45,9 @@ def checkpoint(encoder, decoder, args):
 
 def main(writer, args, gpu):
 
-    dataset = Data('train', args.small_secret_size, size=(args.im_height, args.im_width), dataset_size=args.dataset_size)
-    eval_dataset = Data('eval', args.small_secret_size, size=(args.im_height, args.im_width), dataset_size=int(args.dataset_size/16))
-    test_dataset = Data('test', args.small_secret_size, size=(args.im_height, args.im_width), dataset_size=int(args.dataset_size/16))
+    dataset = Data('train', args.small_secret_size, size=(args.im_height, args.im_width))
+    eval_dataset = Data('eval', args.small_secret_size, size=(args.im_height, args.im_width))
+    test_dataset = Data('test', args.small_secret_size, size=(args.im_height, args.im_width))
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
     eval_dataloader = DataLoader(eval_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
     test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers, pin_memory=True)
