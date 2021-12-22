@@ -65,8 +65,8 @@ def start_testrun(args, run_results):
     secret_size = args.secret_size
     channel_coding = args.channel_coding
     im_size = args.im_height
-    ch_enc = './checkpoints/channel_encoder_current_0.2'
-    ch_dec = './checkpoints/channel_decoder_current_0.2'
+    ch_enc = './checkpoints/channel_encoder_s22'
+    ch_dec = './checkpoints/channel_decoder_s22'
     enc = f'./checkpoints/encoder_current_{run}'
     dec = f'./checkpoints/decoder_current_{run}'
     cuda = True
@@ -77,8 +77,8 @@ def start_testrun(args, run_results):
     cos = torch.nn.CosineSimilarity(dim=1)
 
     if(channel_coding):
-        channel_encoder = model.ChannelEncoder(secret_size)
-        channel_decoder = model.ChannelDecoder(secret_size)
+        channel_encoder = model.ChannelEncoder(args.small_secret_size, 'small')
+        channel_decoder = model.ChannelDecoder(args.small_secret_size, 'small')
         channel_encoder.load_state_dict(torch.load(ch_enc))
         channel_decoder.load_state_dict(torch.load(ch_dec))
         channel_encoder.eval()
@@ -92,8 +92,8 @@ def start_testrun(args, run_results):
         channel_encoder = None
         channel_decoder = None
 
-    encoder = model.EncoderNet(secret_size*scale_factor,im_size,im_size,mask_residual=mask_residual)
-    decoder = model.DecoderNet(secret_size*scale_factor,im_size,im_size)
+    encoder = model.EncoderNet(secret_size,im_size,im_size,mask_residual=mask_residual)
+    decoder = model.DecoderNet(secret_size,im_size,im_size)
     encoder.load_state_dict(torch.load(enc))
     decoder.load_state_dict(torch.load(dec))
     encoder.cuda()
@@ -110,33 +110,35 @@ def start_testrun(args, run_results):
     secrets = []
     results = {} 
 
-    for data in tqdm(dataloader):
-        image_input, mask_input, secret_input, region_input, name_input = data
+    if(False):
 
-        if(cuda):
-            image_input = image_input.cuda()
-            secret_input = secret_input.cuda()
-            mask_input = mask_input.cuda()
+        for data in tqdm(dataloader):
+            image_input, mask_input, secret_input, region_input, name_input = data
 
-        orig_secret_input = secret_input.clone().detach()
-        if(channel_coding):
-            secret_input = channel_encoder(secret_input)
+            if(cuda):
+                image_input = image_input.cuda()
+                secret_input = secret_input.cuda()
+                mask_input = mask_input.cuda()
 
-        # encoded_image = image_input + encoder((secret_input, image_input, mask_input))
-        residual = encoder((secret_input, image_input, mask_input))
-        encoded_image = torch.clip(image_input + residual, 0, 1)
+            orig_secret_input = secret_input.clone().detach()
+            if(channel_coding):
+                secret_input = channel_encoder(secret_input)
 
-        inputs = image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder 
+            # encoded_image = image_input + encoder((secret_input, image_input, mask_input))
+            residual = encoder((secret_input, image_input, mask_input))
+            encoded_image = torch.clip(image_input + residual, 0, 1)
 
-        tensor_score.append(tensor_similarity(inputs))
-        try:
-            test_score.append(test_similarity(inputs))
-        except Exception as e:
-            print(e)
-            continue
+            inputs = image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder 
 
-    results['tensor_score'] = np.mean(tensor_score)
-    results['test_score'] = np.mean(test_score)
+            tensor_score.append(tensor_similarity(inputs))
+            try:
+                test_score.append(test_similarity(inputs))
+            except Exception as e:
+                print(e)
+                continue
+
+        results['tensor_score'] = np.mean(tensor_score)
+        results['test_score'] = np.mean(test_score)
     results = faceswap_test(encoder, decoder, channel_encoder, channel_decoder, args, results)
 
     run_results[run] = results
@@ -147,7 +149,6 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Specify GPU and run')
     parser.add_argument('--gpu')
-    parser.add_argument('--run')
 
     args = parser.parse_args()
 
