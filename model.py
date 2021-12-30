@@ -322,6 +322,8 @@ def distort(args, encoded_image, distortion='none'):
         return K.augmentation.RandomPerspective(0.5, p=1)(encoded_image)
     elif(distortion == 'affine'):
         return K.augmentation.RandomAffine(45, p=1)(encoded_image)
+    elif(distortion == 'gaussian_blur'):
+        return K.augmentation.RandomGaussianBlur((3, 3), (1, 3.0), p=1.)(encoded_image)
     elif(distortion == 'motion_blur'):
         return K.augmentation.RandomMotionBlur(5, 1.0, 1.0, p=1)(encoded_image)
     elif(distortion == 'color_manipulation'):

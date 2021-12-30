@@ -60,33 +60,36 @@ def test_similarity(inputs):
     test_similarity = cos(analyzed_secret, decoded_secret) 
     return test_similarity.item()
 
-def rw_distort_similarity(inputs, args, gt_secret):
+def rw_distort_similarity(inputs, rw_score, distortions, args, gt_secret):
     ## RW distortions
-    ## saturation 5.0
-    ## hue (0.2)
-    ## s&p (0.05)
-    ## gaussian (0.06) 
+    ## perspective
+    ## motion blur
+    ## gaussianblur
+    ## gaussian noise
+    ## color jitter
+    ## jpeg_compression
     image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder = inputs
-    encoded_image = model.distort(args, encoded_image, distortion='rw_distortion')
-    digital_image = transforms.ToPILImage()(encoded_image.squeeze())
-    digital_image.show()
-    img_name = utils.save_image(digital_image)
+    for distortion in distortions:
+        distorted_image = model.distort(args, encoded_image, distortion=distortion)
+        digital_image = transforms.ToPILImage()(distorted_image.squeeze())
+        img_name = utils.save_image(digital_image)
 
-    new_digital_image = Image.open(img_name)
-    new_digital_image = transforms.ToTensor()(new_digital_image)
-    if(cuda):
-        new_digital_image = new_digital_image.cuda()
-    
-    decoded_secret = decoder(new_digital_image[None])
+        new_digital_image = Image.open(img_name)
+        new_digital_image = transforms.ToTensor()(new_digital_image)
+        if(cuda):
+            new_digital_image = new_digital_image.cuda()
+        
+        decoded_secret = decoder(new_digital_image[None])
 
-    if(channel_coding):
-        decoded_secret = channel_decoder(decoded_secret)
+        if(channel_coding):
+            decoded_secret = channel_decoder(decoded_secret)
 
-    decoded_secret = torch.clip(decoded_secret, 0, 1)
-    decoded_secret = torch.round(decoded_secret)
+        decoded_secret = torch.clip(decoded_secret, 0, 1)
+        decoded_secret = torch.round(decoded_secret)
 
-    test_similarity = cos(gt_secret, decoded_secret) 
-    return test_similarity.item()
+        test_similarity = cos(gt_secret, decoded_secret) 
+        rw_score[distortion].append(test_similarity.item())
+    return rw_score
 
 def start_testrun(args, run_results):
     run = args.exp_name
@@ -135,7 +138,10 @@ def start_testrun(args, run_results):
 
     tensor_score = []
     test_score = []
-    rw_score = []
+    rw_score = {}
+    distortions = ['perspective_warp', 'motion_blur', 'gaussian_blur', 'gaussian', 'color_manipulation', 'jpeg_compression']
+    for distortion in distortions:
+        rw_score[distortion] = []
     secrets = []
     results = {} 
 
@@ -163,11 +169,13 @@ def start_testrun(args, run_results):
         except Exception as e:
             print(e)
             continue
-        rw_score.append(rw_distort_similarity(inputs, args, orig_secret_input))
+        rw_score = rw_distort_similarity(inputs, rw_score, distortions, args, orig_secret_input)
 
     results['tensor_score'] = np.mean(tensor_score)
     results['test_score'] = np.mean(test_score)
-    results['rw_score'] = np.mean(rw_score)
+    for distortion in distortions:
+        rw_score[distortion] = np.mean(rw_score[distortion])
+    results['rw_score'] = rw_score
     # results = faceswap_test(args.exp_name, encoder, decoder, channel_encoder, channel_decoder, args, results)
 
     run_results[run] = results
