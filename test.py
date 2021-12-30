@@ -70,7 +70,6 @@ def rw_distort_similarity(inputs, args, gt_secret):
     encoded_image = model.distort(args, encoded_image, disortion='rw_distortion')
     digital_image = transforms.ToPILImage()(encoded_image.squeeze())
     digital_image.show()
-    breakpoint()
     img_name = utils.save_image(digital_image)
 
     new_digital_image = Image.open(img_name)
@@ -85,9 +84,6 @@ def rw_distort_similarity(inputs, args, gt_secret):
 
     decoded_secret = torch.clip(decoded_secret, 0, 1)
     decoded_secret = torch.round(decoded_secret)
-
-    print(gt_secret.shape, decoded_secret.shape)
-    breakpoint()
 
     test_similarity = cos(gt_secret, decoded_secret) 
     return test_similarity.item()
