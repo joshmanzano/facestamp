@@ -2,3 +2,5 @@ exp_name: vanilla
 verbose_exp_name: No Channel Coding and No Adv Training
 channel_coding: False
 distortion_method: none
+secret_size: 14
+small_secret_size: 14

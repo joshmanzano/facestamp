@@ -67,7 +67,7 @@ def rw_distort_similarity(inputs, args, gt_secret):
     ## s&p (0.05)
     ## gaussian (0.06) 
     image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder = inputs
-    encoded_image = model.distort(args, encoded_image, disortion='rw_distortion')
+    encoded_image = model.distort(args, encoded_image, distortion='rw_distortion')
     digital_image = transforms.ToPILImage()(encoded_image.squeeze())
     digital_image.show()
     breakpoint()
