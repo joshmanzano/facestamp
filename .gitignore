@@ -181,6 +181,15 @@ StarGAN
 faceswap
 channel_logs
 archive_channel_logs
-StegaStamp
 *.fsw
 old_checkpoints
+
+# StegaStamp 
+StegaStamp/detector_models
+StegaStamp/encoded/*
+StegaStamp/env
+StegaStamp/heatmaps/*
+StegaStamp/in/*
+StegaStamp/out/*
+StegaStamp/output/*
+StegaStamp/saved_models
