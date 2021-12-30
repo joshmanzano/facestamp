@@ -70,14 +70,13 @@ def rw_distort_similarity(inputs, rw_score, distortions, args, gt_secret):
     ## jpeg_compression
     image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder = inputs
     for distortion in distortions:
-        distorted_image = model.distort(args, encoded_image, distortion=distortion)
+        distorted_image = model.distort(args, encoded_image.cpu(), distortion=distortion)
         digital_image = transforms.ToPILImage()(distorted_image.squeeze())
         img_name = utils.save_image(digital_image)
 
         new_digital_image = Image.open(img_name)
         new_digital_image = transforms.ToTensor()(new_digital_image)
-        if(cuda):
-            new_digital_image = new_digital_image.cuda()
+        new_digital_image = new_digital_image.cuda()
         
         decoded_secret = decoder(new_digital_image[None])
 
