@@ -102,6 +102,14 @@ df_models = [
         'name': 'mf4',
         'source': 'mcem0'
     },
+    {
+        'name': 'ff5',
+        'source': 'fcmh0'
+    },
+    {
+        'name': 'fm6',
+        'source': 'fgjd0',
+    }
 ]
 
 for df_model in df_models:
@@ -143,15 +151,16 @@ channel_decoder.eval()
 channel_encoder = channel_encoder.cuda()
 channel_decoder = channel_decoder.cuda()
 
-def stegastamp_encode(input_dir, output_dir, size):
+dataset_size = 1000
+
+def stegastamp_encode(input_dir, output_dir):
 
     model = 'StegaStamp/saved_models/stegastamp_pretrained'
 
 
-    if(size == 0):
-        files_list = glob(input_dir + '/*.png')
-    else:
-        files_list = glob(input_dir + '/*.png')[:size]
+    files_list = glob(input_dir + '/*.png')
+    size = int(len(files_list) * 0.02)
+    files_list = files_list[:size]
 
     sess = tf.InteractiveSession(graph=tf.Graph())
 
@@ -265,9 +274,10 @@ def stegastamp_decode(input_dir):
 
         similarity = cos(secret[None], analyzed[None])
         similarities.append(similarity.item())
-
     
-    return similarities, unreadable
+    similarities = np.array(similarities)
+    
+    return similarities.mean(), similarities.std(), unreadable
 
 
 # def run_stegastamp_encode(source):
@@ -318,24 +328,40 @@ if __name__ == '__main__':
     similarities = []
     for df_model in df_models:
         source = df_model['source']
-        stegastamp_encode(f'./faceswap/data/test/{source}-resized',f'./faceswap/data/test/{source}-enc', 0)
+        stegastamp_encode(f'./faceswap/data/test/{source}-resized',f'./faceswap/data/test/{source}-enc')
     #     gt_secrets = torch.Tensor(gt_secrets)
     #     secrets = torch.Tensor(secrets)
     #     similarity = cos(gt_secrets,secrets).mean().item()
     #     similarities.append(similarity)
     # similarities = np.array(similarities)
     subprocess.run('env/bin/python3 faceswap_test.py',shell=True)
+    preswap = []
+    swapped = []
+    ps_std = []
+    s_std = []
+    unreadable_preswap = 0
+    unreadable_swapped = 0
     for df_model in df_models:
         source = df_model['source']
-        preswap, preswap_unreadable = stegastamp_decode(f'./faceswap/data/test/{source}-enc')
-        swapped, swapped_unreadable = stegastamp_decode(f'./faceswap/data/test/{source}-enc-swap')
+        preswap_mean, preswap_std, preswap_unreadable = stegastamp_decode(f'./faceswap/data/test/{source}-enc')
+        swapped_mean, swapped_std, swapped_unreadable = stegastamp_decode(f'./faceswap/data/test/{source}-enc-swap')
+        unreadable_preswap += preswap_unreadable
+        unreadable_swapped += swapped_unreadable
+        preswap.append(preswap_mean)
+        swapped.append(swapped_mean)
+        ps_std.append(preswap_std)
+        s_std.append(swapped_std)
     
     preswap = np.array(preswap)
     swapped = np.array(swapped)
+    ps_std = np.array(ps_std)
+    s_std = np.array(s_std)
     print(preswap.mean())
     print(preswap.std())
-    print(preswap_unreadable)
+    print(ps_std.mean())
+    print(unreadable_preswap)
 
     print(swapped.mean())
     print(swapped.std())
-    print(swapped_unreadable)
+    print(s_std.mean())
+    print(unreadable_swapped)

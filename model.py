@@ -259,6 +259,40 @@ class DecoderNet(nn.Module):
 
         return decoded
 
+class DetectNet(nn.Module):
+    def __init__(self, im_height, im_width):
+        super().__init__()
+        self.im_height = im_height 
+        self.im_width = im_width 
+        flatten_output = int(math.ceil(im_height / 32)) * int(math.ceil(im_width / 32)) * 128
+        self.main = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(128, 128, kernel_size=3, stride=2, padding=1),
+            nn.ReLU(),
+            Flatten(),
+            nn.Linear(flatten_output, int(flatten_output/2)),
+            nn.ReLU(),
+            nn.Linear(int(flatten_output/2), 1),
+            )
+    def forward(self, image):
+        image = image - .5
+        image = image.reshape(-1, 3, self.im_height, self.im_width)
+
+        prediction = self.main(image)
+
+        return prediction
+
 def distort(args, encoded_image, distortion='none'):
     if(distortion == 'none'):
         return encoded_image
@@ -594,13 +628,14 @@ def build_model(encoder, decoder, channel_decoder, attacker, cos, mse, orig_secr
 def test():
     secret = torch.rand((4,14))
     image = torch.rand((4,3,512,384))
-    mask = torch.rand((4,1,512,384))
-    encoder = EncoderNet(secret_size=14, im_height=128, im_width=128)
+    mask = torch.rand((4,3,512,384))
+    encoder = EncoderNet(secret_size=14, im_height=400, im_width=400)
     encoded = encoder((secret, image, mask))
     print(encoded.shape)
-    decoder = DecoderNet(secret_size=14, im_height=128, im_width=128)
+    decoder = DecoderNet(secret_size=14, im_height=400, im_width=400)
     decoded = decoder(encoded)
     print(decoded.shape)
+    detector = DetectNet(im_height=400, im_width=400)
 
 if __name__ == '__main__':
     test()

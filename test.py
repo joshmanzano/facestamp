@@ -19,6 +19,7 @@ import argparse
 import os
 from easydict import EasyDict
 import yaml
+import pickle
 
 def tensor_similarity(inputs):
     image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder = inputs
@@ -59,6 +60,37 @@ def test_similarity(inputs):
     test_similarity = cos(analyzed_secret, decoded_secret) 
     return test_similarity.item()
 
+def rw_distort_similarity(inputs, args, gt_secret):
+    ## RW distortions
+    ## saturation 5.0
+    ## hue (0.2)
+    ## s&p (0.05)
+    ## gaussian (0.06) 
+    image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder = inputs
+    encoded_image = model.distort(args, encoded_image, disortion='rw_distortion')
+    digital_image = transforms.ToPILImage()(encoded_image.squeeze())
+    digital_image.show()
+    breakpoint()
+    img_name = utils.save_image(digital_image)
+
+    new_digital_image = Image.open(img_name)
+    new_digital_image = transforms.ToTensor()(new_digital_image)
+    if(cuda):
+        new_digital_image = new_digital_image.cuda()
+    
+    decoded_secret = decoder(new_digital_image[None])
+
+    if(channel_coding):
+        decoded_secret = channel_decoder(decoded_secret)
+
+    decoded_secret = torch.clip(decoded_secret, 0, 1)
+    decoded_secret = torch.round(decoded_secret)
+
+    print(gt_secret.shape, decoded_secret.shape)
+    breakpoint()
+
+    test_similarity = cos(gt_secret, decoded_secret) 
+    return test_similarity.item()
 
 def start_testrun(args, run_results):
     run = args.exp_name
@@ -70,7 +102,7 @@ def start_testrun(args, run_results):
     enc = f'./checkpoints/encoder_current_{run}'
     dec = f'./checkpoints/decoder_current_{run}'
     cuda = True
-    mask_residual = True
+    mask_residual = args.mask_residual
     dataset = Data('test',args.secret_size,size=(im_size,im_size))
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=0, pin_memory=True)
 
@@ -107,39 +139,40 @@ def start_testrun(args, run_results):
 
     tensor_score = []
     test_score = []
+    rw_score = []
     secrets = []
     results = {} 
 
-    if(False):
+    for data in tqdm(dataloader):
+        image_input, mask_input, secret_input, region_input, name_input = data
 
-        for data in tqdm(dataloader):
-            image_input, mask_input, secret_input, region_input, name_input = data
+        if(cuda):
+            image_input = image_input.cuda()
+            secret_input = secret_input.cuda()
+            mask_input = mask_input.cuda()
 
-            if(cuda):
-                image_input = image_input.cuda()
-                secret_input = secret_input.cuda()
-                mask_input = mask_input.cuda()
+        orig_secret_input = secret_input.clone().detach()
+        if(channel_coding):
+            secret_input = channel_encoder(secret_input)
 
-            orig_secret_input = secret_input.clone().detach()
-            if(channel_coding):
-                secret_input = channel_encoder(secret_input)
+        # encoded_image = image_input + encoder((secret_input, image_input, mask_input))
+        residual = encoder((secret_input, image_input, mask_input))
+        encoded_image = torch.clip(image_input + residual, 0, 1)
 
-            # encoded_image = image_input + encoder((secret_input, image_input, mask_input))
-            residual = encoder((secret_input, image_input, mask_input))
-            encoded_image = torch.clip(image_input + residual, 0, 1)
+        inputs = image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder 
 
-            inputs = image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder 
+        tensor_score.append(tensor_similarity(inputs))
+        try:
+            test_score.append(test_similarity(inputs))
+        except Exception as e:
+            print(e)
+            continue
+        rw_score.append(rw_distort_similarity(inputs, args, orig_secret_input))
 
-            tensor_score.append(tensor_similarity(inputs))
-            try:
-                test_score.append(test_similarity(inputs))
-            except Exception as e:
-                print(e)
-                continue
-
-        results['tensor_score'] = np.mean(tensor_score)
-        results['test_score'] = np.mean(test_score)
-    results = faceswap_test(encoder, decoder, channel_encoder, channel_decoder, args, results)
+    results['tensor_score'] = np.mean(tensor_score)
+    results['test_score'] = np.mean(test_score)
+    results['rw_score'] = np.mean(rw_score)
+    # results = faceswap_test(args.exp_name, encoder, decoder, channel_encoder, channel_decoder, args, results)
 
     run_results[run] = results
 
@@ -176,6 +209,8 @@ if __name__ == '__main__':
                 utils.set_run(args.exp_name)
                 run_results = start_testrun(args, run_results)
     
+    timestamp = str(int(time.time()))
+    pickle.dump(run_results,open(f'testing_results_{timestamp}.bin','wb'))
     print(run_results)
 
 
