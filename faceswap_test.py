@@ -73,8 +73,7 @@ for df_model in df_models:
 
 size = 400
 
-threshold = 0.9
-thresholds = np.linspace(0.7, 0.95, 5)
+thresholds = [round(i,4) for i in np.linspace(0.01, 0.99, 100)]
 
 cos = torch.nn.CosineSimilarity(dim=1)
 
@@ -99,6 +98,10 @@ def run_faceswap():
 
 def create_encoded(encoder, decoder, channel_encoder, channel_decoder, args, cache_secrets, acc):
     score = []
+    for threshold in thresholds:
+        acc[threshold] = {}
+        acc[threshold]['tn'] = 0
+        acc[threshold]['fp'] = 0
     for df_model in df_models:
         print(df_model['name'], df_model['source'])
         output_path = df_model['output_path']
@@ -106,7 +109,8 @@ def create_encoded(encoder, decoder, channel_encoder, channel_decoder, args, cac
         residual_path = df_model['residual_path']
         images = glob(f'{resized_path}/*')
         random.shuffle(images)
-        size = int(len(images) * 0.02)
+        size = int(len(images) * 0.2)
+        # size = int(len(images))
         images = images[:size]
         for step, image in enumerate(tqdm(images)):
             path = Path(image)
@@ -149,16 +153,13 @@ def create_encoded(encoder, decoder, channel_encoder, channel_decoder, args, cac
             decoded = torch.round(torch.clip(decoded, 0, 1))
             similarity = cos(analyzed, decoded)
             similarity = similarity.item()
-            acc['tn'] = {}
-            acc['fp'] = {}
             for threshold in thresholds:
                 if(similarity >= threshold):
                     ## true negative
-                    # acc['tn'][threshold] += 1
-                    acc['tn'][threshold] = acc['tn'].get(threshold, 0) + 1
+                    acc[threshold]['tn'] += 1
                 elif(similarity < threshold):
                     ## false positive
-                    acc['fp'][threshold] = acc['fp'].get(threshold, 0) + 1
+                    acc[threshold]['fp'] += 1
             score.append(similarity)
 
             # (transforms.ToPILImage()(residual.squeeze())).show()
@@ -170,6 +171,9 @@ def decode_swapped(decoder, channel_decoder, args, cache_secrets, acc):
     match_score = []
     unreadable = 0
     failed = 0
+    for threshold in thresholds:
+        acc[threshold]['fn'] = 0
+        acc[threshold]['tp'] = 0
     for df_model in df_models:
         swap_path = df_model['swap_path']
         images = glob(f'{swap_path}/*')
@@ -195,15 +199,13 @@ def decode_swapped(decoder, channel_decoder, args, cache_secrets, acc):
             match_similarity = cos(analyzed, decoded)
             similarity = match_similarity.item()
             match_score.append(similarity)
-            acc['fn'] = {}
-            acc['tp'] = {}
             for threshold in thresholds:
                 if(similarity >= threshold):
                     ## false negative
-                    acc['fn'][threshold] = acc['fn'].get(threshold, 0) + 1
+                    acc[threshold]['fn'] += 1
                 elif(similarity < threshold):
                     ## true positive
-                    acc['tp'][threshold] = acc['tp'].get(threshold, 0) + 1
+                    acc[threshold]['tp'] += 1 
     return match_score, acc, unreadable, failed
 
 def compile_examples(run, residuals=False):
@@ -271,10 +273,10 @@ def faceswap_test(run, encoder, decoder, channel_encoder, channel_decoder, args,
     clear_previous()
     # prepare_all_resized()
     pre_score, acc = create_encoded(encoder, decoder, channel_encoder, channel_decoder, args, cache_secrets, acc)
-    results['preswap_match'] = (np.mean(pre_score), np.std(pre_score))
+    results['preswap_match'] = pre_score
     run_faceswap()
     swap_score, acc, unreadable, failed = decode_swapped(decoder, channel_decoder, args, cache_secrets, acc)
-    results['swap_match'] = (np.mean(swap_score), np.std(swap_score))
+    results['swap_match'] = swap_score
     results['unreadable'] = unreadable
     results['failed'] = failed
     results['acc'] = acc
@@ -310,8 +312,7 @@ def test_models():
 
 
 if __name__ == '__main__':
-    thresholds = np.linspace(70, 95, 5)
-    print(thresholds)
+    run_faceswap()
     # test_models()
     # clear_previous()
     # prepare_all_resized()

@@ -197,14 +197,14 @@ def main(writer, args, gpu):
             else:
                 orig_secret_input = None
 
-            if(not args.eval_training):
+            if(not args.eval_tuning):
                 encoder.eval()
                 decoder.eval()
 
             test_acc, loss = model.eval_model(encoder, decoder, mse, channel_decoder, cos, image_input, mask_input, 
                     secret_input, args, region_input)
 
-            if(args.eval_training and all_losses):
+            if(args.eval_tuning and all_losses):
                 test_losses.append(loss.cpu().item())
                 optimize_loss.zero_grad()
                 loss.backward()
@@ -308,14 +308,14 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Specify GPU and run')
     parser.add_argument('--gpu')
-    parser.add_argument('--run')
+    parser.add_argument('--runs')
 
     args = parser.parse_args()
 
     try:
-        run = args.run
+        runs = args.runs
     except:
-        run = 'main'
+        runs = 'main'
 
     try:
         gpu = str(args.gpu)
@@ -328,25 +328,58 @@ if __name__ == '__main__':
         for arg in new_args:
             base_args[arg] = new_args[arg]
         return base_args
+    
+    runs = runs.split(',')
 
+    for run in runs:
 
-    with open('cfg/base.yaml','r') as base_yaml:
-        base_args = EasyDict(yaml.load(base_yaml, Loader=yaml.SafeLoader))
-        with open(f'cfg/runs/{run}.yaml', 'r') as run_yaml:
-            run_args = EasyDict(yaml.load(run_yaml, Loader=yaml.SafeLoader))
-            args = replace_args(base_args, run_args)
+        run = run.strip()
 
-            if not os.path.exists(args.checkpoints_path):
-                os.makedirs(args.checkpoints_path)
+        if run == '':
+            continue
 
-            if not os.path.exists(args.logs_path):
-                os.makedirs(args.logs_path)
+        with open('cfg/base.yaml','r') as base_yaml:
+            base_args = EasyDict(yaml.load(base_yaml, Loader=yaml.SafeLoader))
+            with open(f'cfg/runs/{run}.yaml', 'r') as run_yaml:
+                run_args = EasyDict(yaml.load(run_yaml, Loader=yaml.SafeLoader))
+                args = replace_args(base_args, run_args)
 
-            if not os.path.exists(args.encoded_path):
-                os.makedirs(args.encoded_path)
-            
-            log_path = os.path.join(args.logs_path, f'{args.verbose_exp_name} ({int(time.time())})')
-            utils.set_run(args.exp_name)
-            writer = SummaryWriter(log_dir=log_path)
-            main(writer, args, int(gpu))
-            writer.close()
+                if not os.path.exists(args.checkpoints_path):
+                    os.makedirs(args.checkpoints_path)
+
+                if not os.path.exists(args.logs_path):
+                    os.makedirs(args.logs_path)
+
+                if not os.path.exists(args.encoded_path):
+                    os.makedirs(args.encoded_path)
+                
+                def random_weight():
+                    rand_num = float(args.random_min) + (random.random() * float(args.random_max))
+                    return rand_num
+                
+                if(args.randomize_weights):
+                    eval = random_weight()
+                    args.eval_loss_weight = eval
+                    percep = random_weight()
+                    args.lpips_loss_weight = percep
+                    secret_loss = random_weight()
+                    args.secret_loss_weight = secret_loss
+                    adv_secret = random_weight()
+                    args.adv_secret_loss_weight = adv_secret
+                    residual = random_weight()
+                    args.residual_loss_weight = residual
+                    # a1
+                    a1 = random_weight()
+                    args.adv_similarity_weight = a1
+                    # a2
+                    a2 = random_weight()
+                    args.adv_strength_weight = a2
+                
+                    args.exp_name = 'weights_%.2f_%.2f_%.2f_%.2f_%.2f_%.2f_%.2f' % (eval, percep, secret_loss, adv_secret, residual, a1, a2)
+                    args.verbose_exp_name = 'Weights %.2f %.2f %.2f %.2f %.2f %.2f %.2f' % (eval, percep, secret_loss, adv_secret, residual, a1, a2)
+                
+                log_path = os.path.join(args.logs_path, f'{args.verbose_exp_name} ({int(time.time())})')
+                utils.set_run(args.exp_name)
+                writer = SummaryWriter(log_dir=log_path)
+                main(writer, args, int(gpu))
+                writer.close()

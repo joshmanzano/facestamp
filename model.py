@@ -88,8 +88,6 @@ class ChannelDiscriminator(nn.Module):
         output = self.main(secret)
         return output
 
-
-
 class AttackNet(nn.Module):
     def __init__(self, im_height, im_width):
         super().__init__()
@@ -401,6 +399,8 @@ def eval_model(encoder, decoder, mse, channel_decoder, cos, image_input, mask_in
         test_acc = cos(analyzed_secret, decoded_secret).mean()
         secret_loss = mse(decoded_secret, analyzed_secret)
     
+    secret_loss *= args.eval_loss_weight
+    
     return test_acc, secret_loss 
 
 def single_eval(encoder, decoder, channel_decoder, cos, orig_secret_input, secret_input, image_input, mask_input,
@@ -547,9 +547,9 @@ def build_model(encoder, decoder, channel_decoder, attacker, cos, mse, orig_secr
         # get adversarial loss
         # adv_loss = adv_image_loss + (args.a1_weight * (1 - (a1_adv_intensity - 1)) * adv_image_mse_loss) - (args.a2_weight * a2_adv_intensity * adv_secret_loss)
         if(args.distortion_method == 'network'):
-            adv_loss = (args.a1_weight * adv_image_mse_loss) - (args.a2_weight * adv_secret_loss)
+            adv_loss = (args.adv_similarity_weight * adv_image_mse_loss) - (args.adv_strength_weight * adv_secret_loss)
         else:
-            adv_loss = (args.a2_weight * adv_secret_loss)
+            adv_loss = (args.adv_strength_weight * adv_secret_loss)
     else:
         adv_loss = None
 

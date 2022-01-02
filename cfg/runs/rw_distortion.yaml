@@ -1,3 +1,3 @@
 exp_name: rw_distortion
-verbose_exp_name: Trained on RW Distortions
+verbose_exp_name: Real-world Distortion Training
 distortion_method: rw_distortion 

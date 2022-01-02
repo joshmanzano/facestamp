@@ -1,5 +1,5 @@
 exp_name: no_channel_coding
-verbose_exp_name: No channel coding
+verbose_exp_name: No Channel Coding
 channel_coding: False
 secret_size: 14
 small_secret_size: 14

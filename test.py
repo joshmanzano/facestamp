@@ -175,7 +175,7 @@ def start_testrun(args, run_results):
     for distortion in distortions:
         rw_score[distortion] = np.mean(rw_score[distortion])
     results['rw_score'] = rw_score
-    # results = faceswap_test(args.exp_name, encoder, decoder, channel_encoder, channel_decoder, args, results)
+    results = faceswap_test(args.exp_name, encoder, decoder, channel_encoder, channel_decoder, args, results)
 
     run_results[run] = results
 
@@ -213,7 +213,7 @@ if __name__ == '__main__':
                 run_results = start_testrun(args, run_results)
     
     timestamp = str(int(time.time()))
-    pickle.dump(run_results,open(f'testing_results_{timestamp}.bin','wb'))
+    pickle.dump(run_results,open(f'testing_results.bin','wb'))
     print(run_results)
 
 

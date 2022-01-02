@@ -12,6 +12,7 @@ import torch
 from torch import nn
 import ast
 from tqdm import tqdm
+import pickle
 
 cos = torch.nn.CosineSimilarity(dim=1)
 
@@ -79,37 +80,29 @@ base_path = './faceswap/data/test/'
 
 df_models = [
     {
-        'name': 'f1',
+        'name': 'ff1',
         'source': 'fadg0'
     },
-    {
-        'name': 'm1',
-        'source': 'mwbt0'
-    },
-    {
-        'name': 'f2',
-        'source': 'fcft0'
-    },
-    {
-        'name': 'm2',
-        'source': 'mccs0'
-    },
-    {
-        'name': 'fm3',
-        'source': 'fjem0'
-    },
-    {
-        'name': 'mf4',
-        'source': 'mcem0'
-    },
-    {
-        'name': 'ff5',
-        'source': 'fcmh0'
-    },
-    {
-        'name': 'fm6',
-        'source': 'fgjd0',
-    }
+    # {
+    #     'name': 'mm3',
+    #     'source': 'mwbt0'
+    # },
+    # {
+    #     'name': 'ff2',
+    #     'source': 'fcft0'
+    # },
+    # {
+    #     'name': 'mm4',
+    #     'source': 'mccs0'
+    # },
+    # {
+    #     'name': 'mf6',
+    #     'source': 'mcem0'
+    # },
+    # {
+    #     'name': 'fm7',
+    #     'source': 'fgjd0',
+    # }
 ]
 
 for df_model in df_models:
@@ -275,9 +268,7 @@ def stegastamp_decode(input_dir):
         similarity = cos(secret[None], analyzed[None])
         similarities.append(similarity.item())
     
-    similarities = np.array(similarities)
-    
-    return similarities.mean(), similarities.std(), unreadable
+    return similarities, unreadable
 
 
 # def run_stegastamp_encode(source):
@@ -343,25 +334,31 @@ if __name__ == '__main__':
     unreadable_swapped = 0
     for df_model in df_models:
         source = df_model['source']
-        preswap_mean, preswap_std, preswap_unreadable = stegastamp_decode(f'./faceswap/data/test/{source}-enc')
-        swapped_mean, swapped_std, swapped_unreadable = stegastamp_decode(f'./faceswap/data/test/{source}-enc-swap')
+        preswap_temp, preswap_unreadable = stegastamp_decode(f'./faceswap/data/test/{source}-enc')
+        swapped_temp, swapped_unreadable = stegastamp_decode(f'./faceswap/data/test/{source}-enc-swap')
+        preswap += preswap_temp
+        swapped += swapped_temp
         unreadable_preswap += preswap_unreadable
         unreadable_swapped += swapped_unreadable
-        preswap.append(preswap_mean)
-        swapped.append(swapped_mean)
-        ps_std.append(preswap_std)
-        s_std.append(swapped_std)
     
-    preswap = np.array(preswap)
-    swapped = np.array(swapped)
-    ps_std = np.array(ps_std)
-    s_std = np.array(s_std)
-    print(preswap.mean())
-    print(preswap.std())
-    print(ps_std.mean())
-    print(unreadable_preswap)
+    print(preswap, swapped)
+    results = {
+        'preswap': preswap,
+        'swapped': swapped,
+        'unreadable_preswap': unreadable_preswap,
+        'unreadable_swapped':unreadable_swapped 
+    }
 
-    print(swapped.mean())
-    print(swapped.std())
-    print(s_std.mean())
-    print(unreadable_swapped)
+    pickle.dump(results, open('stegastamp_testing_results.bin','wb'))
+
+    # ps_std = np.array(ps_std)
+    # s_std = np.array(s_std)
+    # print(preswap.mean())
+    # print(preswap.std())
+    # print(ps_std.mean())
+    # print(unreadable_preswap)
+
+    # print(swapped.mean())
+    # print(swapped.std())
+    # print(s_std.mean())
+    # print(unreadable_swapped)
