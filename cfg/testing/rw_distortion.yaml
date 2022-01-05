@@ -1,0 +1,5 @@
+exp_name: rw_distortion
+verbose_exp_name: RW Distortions 
+distortion_method: rw_distortion
+
+

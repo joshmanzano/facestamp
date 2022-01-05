@@ -291,6 +291,17 @@ class DetectNet(nn.Module):
 
         return prediction
 
+def test_distort(encoded_image, im_height, im_width, distortion, quality=80):
+    if(distortion == 'jpeg_compression'):
+        encoded_image = transforms.ToTensor()(encoded_image).cpu()
+        encoded_image = DiffJPEG(im_height,im_width,quality=quality)(encoded_image[None])
+        encoded_image = transforms.ToPILImage()(encoded_image.squeeze())
+    elif(distortion == 'gaussian_blur'):
+        encoded_image = transforms.ToTensor()(encoded_image).cpu()
+        encoded_image = K.augmentation.RandomGaussianBlur((3, 3), (1, 3.0), p=1.)(encoded_image[None])
+        encoded_image = transforms.ToPILImage()(encoded_image.squeeze())
+    return encoded_image
+
 def distort(args, encoded_image, distortion='none'):
     if(distortion == 'none'):
         return encoded_image

@@ -193,3 +193,10 @@ StegaStamp/in/*
 StegaStamp/out/*
 StegaStamp/output/*
 StegaStamp/saved_models
+
+*.patch
+steganogan
+SimSwap
+fsgan
+test_data
+train_data

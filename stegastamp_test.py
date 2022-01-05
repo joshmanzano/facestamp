@@ -13,6 +13,7 @@ from torch import nn
 import ast
 from tqdm import tqdm
 import pickle
+import json
 
 cos = torch.nn.CosineSimilarity(dim=1)
 
@@ -76,34 +77,9 @@ class ChannelEncoder(nn.Module):
 
 
 
-base_path = './faceswap/data/test/'
+base_path = './test_data/vidtimit/process'
 
-df_models = [
-    {
-        'name': 'ff1',
-        'source': 'fadg0'
-    },
-    # {
-    #     'name': 'mm3',
-    #     'source': 'mwbt0'
-    # },
-    # {
-    #     'name': 'ff2',
-    #     'source': 'fcft0'
-    # },
-    # {
-    #     'name': 'mm4',
-    #     'source': 'mccs0'
-    # },
-    # {
-    #     'name': 'mf6',
-    #     'source': 'mcem0'
-    # },
-    # {
-    #     'name': 'fm7',
-    #     'source': 'fgjd0',
-    # }
-]
+df_models = json.load(open('df_models.json','r')) 
 
 for df_model in df_models:
     input_path = base_path + df_model['source']
@@ -153,7 +129,7 @@ def stegastamp_encode(input_dir, output_dir):
 
     files_list = glob(input_dir + '/*.png')
     size = int(len(files_list) * 0.02)
-    files_list = files_list[:size]
+    files_list = files_list[:25]
 
     sess = tf.InteractiveSession(graph=tf.Graph())
 
@@ -178,6 +154,8 @@ def stegastamp_encode(input_dir, output_dir):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         size = (width, height)
+
+        analysis = pickle.load(open(f'{input_dir}/analysis.bin','rb'))
         for filename in tqdm(files_list):
             path = pathlib.Path(filename)
             full_stem = path.stem + path.suffix 
@@ -187,15 +165,15 @@ def stegastamp_encode(input_dir, output_dir):
             image /= 255.
 
             try:
-                secret = subprocess.check_output(f'env/bin/python3 analyze_face.py {filename}',shell=True)
-                secret = secret.splitlines()[-1].decode('utf8')
-                secret = ast.literal_eval(secret)
+                secret = analysis[filename][0]
             except Exception as e:
                 print(e)
                 continue
 
             secret = torch.Tensor(secret).cuda()
-            secret = channel_encoder(secret).tolist()
+            secret = channel_encoder(secret)
+
+            secret = torch.round(torch.clip(secret, 0, 1)).tolist()
             secrets.append(secret)
 
             feed_dict = {input_secret:[secret],
@@ -272,14 +250,14 @@ def stegastamp_decode(input_dir):
 
 
 # def run_stegastamp_encode(source):
-#     # python3 encode_image.py ../faceswap/data/test/fadg0 ../faceswap/data/test/fadg-enc
-#     stega_cmd = f'/home/luna/anaconda3/envs/stegastamp/bin/python3 encode_image.py ../faceswap/data/test/{source} ../faceswap/data/test/{source}-enc'
+#     # python3 encode_image.py ../test_data/vidtimit/processfadg0 ../test_data/vidtimit/processfadg-enc
+#     stega_cmd = f'/home/luna/anaconda3/envs/stegastamp/bin/python3 encode_image.py ../test_data/vidtimit/process{source} ../test_data/vidtimit/process{source}-enc'
 
 #     subprocess.run(stega_cmd, shell=True, cwd='./StegaStamp')
 
 # def run_stegastamp_decode(source):
-#     # python3 encode_image.py ../faceswap/data/test/fadg0 ../faceswap/data/test/fadg-enc
-#     stega_cmd = f'/home/luna/anaconda3/envs/stegastamp/bin/python3 encode_image.py ../faceswap/data/test/{source} ../faceswap/data/test/{source}-enc'
+#     # python3 encode_image.py ../test_data/vidtimit/processfadg0 ../test_data/vidtimit/processfadg-enc
+#     stega_cmd = f'/home/luna/anaconda3/envs/stegastamp/bin/python3 encode_image.py ../test_data/vidtimit/process{source} ../test_data/vidtimit/process{source}-enc'
 
 #     subprocess.run(stega_cmd, shell=True, cwd='./StegaStamp')
 def clear_previous():
@@ -319,7 +297,7 @@ if __name__ == '__main__':
     similarities = []
     for df_model in df_models:
         source = df_model['source']
-        stegastamp_encode(f'./faceswap/data/test/{source}-resized',f'./faceswap/data/test/{source}-enc')
+        stegastamp_encode(f'./test_data/vidtimit/process{source}-resized',f'./test_data/vidtimit/process{source}-enc')
     #     gt_secrets = torch.Tensor(gt_secrets)
     #     secrets = torch.Tensor(secrets)
     #     similarity = cos(gt_secrets,secrets).mean().item()
@@ -334,8 +312,8 @@ if __name__ == '__main__':
     unreadable_swapped = 0
     for df_model in df_models:
         source = df_model['source']
-        preswap_temp, preswap_unreadable = stegastamp_decode(f'./faceswap/data/test/{source}-enc')
-        swapped_temp, swapped_unreadable = stegastamp_decode(f'./faceswap/data/test/{source}-enc-swap')
+        preswap_temp, preswap_unreadable = stegastamp_decode(f'./test_data/vidtimit/process{source}-enc')
+        swapped_temp, swapped_unreadable = stegastamp_decode(f'./test_data/vidtimit/process{source}-enc-swap')
         preswap += preswap_temp
         swapped += swapped_temp
         unreadable_preswap += preswap_unreadable

@@ -16,12 +16,13 @@ import utils
 
 class Data(Dataset):
     def __init__(self, partition, secret_size=14, size=(400, 400), dataset_size=None):
-        self.data_path = './data/dataset'
+        self.data_path = './train_data'
         self.secret_size = secret_size
         self.size = size
         self.data_list = pickle.load(open(f'{self.data_path}/partition.pkl','rb'))[partition]
         if(partition == 'test'):
-            self.data_list = self.data_list[:int(len(self.data_list) * 0.2)]
+            # self.data_list = self.data_list[:int(len(self.data_list) * 0.2)]
+            self.data_list = self.data_list[:3]
         self.analysis_data = pickle.load(open(f'{self.data_path}/analysis_data.pkl', 'rb'))
         self.to_tensor = transforms.ToTensor()
 
