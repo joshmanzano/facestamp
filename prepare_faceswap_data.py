@@ -17,7 +17,7 @@ import pickle
 import json
 import pathlib
 
-base_path = './test_data/vidtimit/process'
+base_path = './test_data/vidtimit/process/'
 
 df_models = json.load(open('df_models.json','r')) 
 
@@ -77,7 +77,7 @@ def prepare_resized(input_path, resized_path):
         (transforms.ToPILImage()(image_input)).save(img_path)
 
 if __name__ == '__main__':
-    identities = glob('./test_data/vidtimit/process/*-resized')
+    identities = glob('./test_data/trump-cage/*')
     print(identities)
     # for identity in identities:
     #     path = pathlib.Path(identity)
@@ -87,7 +87,12 @@ if __name__ == '__main__':
     #     if not os.path.exists(resized_path):
     #         os.makedirs(resized_path)
     #         prepare_resized(identity, resized_path)
-    delete_extra_dir()
+    # delete_extra_dir()
+    # for identity in identities:
+    #     images = glob(f'{identity}/*.jpg')
+    #     for step, image in enumerate(tqdm(images)):
+    #         new_image = str(image).replace('.jpg', '.png')
+    #         subprocess.run(f'mv {image} {new_image}',shell=True)
 
     for identity in identities:
         path = pathlib.Path(identity)
@@ -103,7 +108,8 @@ if __name__ == '__main__':
                 full_stem = path.stem + '.png'
                 try:
                     secret_input, region_input = utils.get_secret_string(image)
-                except:
+                except Exception as e:
+                    print(e)
                     continue
                 analysis[image] = (secret_input, region_input)
             print(image, (secret_input, region_input))

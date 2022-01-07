@@ -16,6 +16,7 @@ from steganogan.models import SteganoGAN
 import random
 from numpy import dot
 from numpy.linalg import norm
+import argparse
 
 
 base_path = './test_data/vidtimit/process'
@@ -198,34 +199,15 @@ def decode(swapped, input_dir, architecture):
 
 
 if __name__ == '__main__':
-    for architecture in ['residual', 'basic', 'dense']:
-        clear_previous()
-        preswap = []
-        swapped = []
-        ps_std = []
-        s_std = []
-        for df_model in df_models:
-            source = df_model['source']
-            preswap = encode(preswap, f'./test_data/vidtimit/process{source}-resized',f'./test_data/vidtimit/process{source}-enc', architecture)
-        
-        print(np.mean(preswap))
-        print(np.std(preswap))
+    parser = argparse.ArgumentParser(description='Specify GPU and run')
+    parser.add_argument('filename')
+    parser.add_argument('mode')
+    parser.add_argument('--secret')
+    parser.add_argument('--analysis')
 
-        subprocess.run('env/bin/python3 faceswap_test.py',shell=True)
-        # unreadable_preswap = 0
-        # unreadable_swapped = 0
-        for df_model in df_models:
-            source = df_model['source']
-            swapped = decode(swapped, f'./test_data/vidtimit/process{source}-enc-swap', architecture)
-        
-        print(architecture, preswap, swapped)
-        results = {
-            'preswap': preswap,
-            'swapped': swapped,
-        }
+    args = parser.parse_args()
 
-        pickle.dump(results, open(f'steganogan_{architecture}_testing_results.bin','wb'))
-
-
-
-
+    if(args.mode == 'encode'):
+        encode(args.filename, args.secret)
+    elif(args.mode == 'decode'):
+        decode(args.filename, args.analysis)

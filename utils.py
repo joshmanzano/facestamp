@@ -353,7 +353,7 @@ def get_secret_string(filename):
     return secret, region
 
 def analyzeFace(filename):
-    analysis = DeepFace.analyze(filename,actions=['age','gender', 'race', 'emotion'],detector_backend='ssd',prog_bar=False)
+    analysis = DeepFace.analyze(filename,actions=['age','gender', 'race', 'emotion'],detector_backend='ssd',prog_bar=False,enforce_detection=False)
     gender = int(analysis['gender'] == 'Man')
     age = int(analysis['age'])
     race = [float(analysis['race'][r]) for r in analysis['race']]

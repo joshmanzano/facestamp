@@ -14,6 +14,7 @@ import ast
 from tqdm import tqdm
 import pickle
 import json
+import argparse
 
 cos = torch.nn.CosineSimilarity(dim=1)
 
@@ -292,51 +293,14 @@ def compile_examples(example):
     output.save(f'./results/stegastamp-{example}.png')
 
 if __name__ == '__main__':
-    cos = torch.nn.CosineSimilarity(dim=1)
-    clear_previous()
-    similarities = []
-    for df_model in df_models:
-        source = df_model['source']
-        stegastamp_encode(f'./test_data/vidtimit/process{source}-resized',f'./test_data/vidtimit/process{source}-enc')
-    #     gt_secrets = torch.Tensor(gt_secrets)
-    #     secrets = torch.Tensor(secrets)
-    #     similarity = cos(gt_secrets,secrets).mean().item()
-    #     similarities.append(similarity)
-    # similarities = np.array(similarities)
-    subprocess.run('env/bin/python3 faceswap_test.py',shell=True)
-    preswap = []
-    swapped = []
-    ps_std = []
-    s_std = []
-    unreadable_preswap = 0
-    unreadable_swapped = 0
-    for df_model in df_models:
-        source = df_model['source']
-        preswap_temp, preswap_unreadable = stegastamp_decode(f'./test_data/vidtimit/process{source}-enc')
-        swapped_temp, swapped_unreadable = stegastamp_decode(f'./test_data/vidtimit/process{source}-enc-swap')
-        preswap += preswap_temp
-        swapped += swapped_temp
-        unreadable_preswap += preswap_unreadable
-        unreadable_swapped += swapped_unreadable
-    
-    print(preswap, swapped)
-    results = {
-        'preswap': preswap,
-        'swapped': swapped,
-        'unreadable_preswap': unreadable_preswap,
-        'unreadable_swapped':unreadable_swapped 
-    }
+    parser = argparse.ArgumentParser(description='Specify GPU and run')
+    parser.add_argument('filename')
+    parser.add_argument('mode')
+    parser.add_argument('secret')
 
-    pickle.dump(results, open('stegastamp_testing_results.bin','wb'))
+    args = parser.parse_args()
 
-    # ps_std = np.array(ps_std)
-    # s_std = np.array(s_std)
-    # print(preswap.mean())
-    # print(preswap.std())
-    # print(ps_std.mean())
-    # print(unreadable_preswap)
-
-    # print(swapped.mean())
-    # print(swapped.std())
-    # print(s_std.mean())
-    # print(unreadable_swapped)
+    if(args.mode == 'encode'):
+        stegastamp_encode()
+    elif(args.mode == 'decode'):
+        stegastamp_decode()

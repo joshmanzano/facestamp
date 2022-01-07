@@ -403,7 +403,7 @@ def test_models():
             path = Path(image)
             full_stem = path.stem + '.png'
             with open(image, 'rb') as f:
-                with open(f'./test_data/vidtimit/process{source}-enc/{full_stem}', 'wb') as f2:
+                with open(f'./test_data/vidtimit/process/{source}-enc/{full_stem}', 'wb') as f2:
                     f2.write(f.read())
 
         name = df_model['name']
