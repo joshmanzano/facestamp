@@ -1,3 +1,0 @@
-exp_name: main_overtrain
-verbose_exp_name: Overtrained Main Model
-max_epochs: 20
