@@ -1,0 +1,3 @@
+exp_name: no_mask_residual
+verbose_exp_name: No Mask On Residuals
+mask_residual: False

@@ -9,15 +9,15 @@ import pathlib
 from tqdm import tqdm
 import pickle
 import argparse
+import random
 
-def encode(input_dir, output_dir, amount, secret_file):
+def encode(input_dir, output_dir, secret_file):
 
     model = 'StegaStamp/saved_models/stegastamp_pretrained'
 
     secrets = pickle.load(open(secret_file,'rb'))
 
     files_list = glob(input_dir + '/*.png')
-    files_list = files_list[:amount]
 
     sess = tf.InteractiveSession(graph=tf.Graph())
 
@@ -37,12 +37,13 @@ def encode(input_dir, output_dir, amount, secret_file):
 
     for step, filename in enumerate(tqdm(files_list)):
         path = pathlib.Path(filename)
-        full_stem = path.stem + path.suffix 
+        stem = path.stem
+        full_stem = stem + path.suffix 
         image = Image.open(filename).convert("RGB")
         image = np.array(ImageOps.fit(image,size),dtype=np.float32)
         image /= 255.
 
-        secret = secrets[step] 
+        secret = secrets[stem] 
         feed_dict = {input_secret:[secret],
                     input_image:[image]}
 
@@ -77,9 +78,10 @@ def decode(input_dir, secret_file):
     output_secret_name = model.signature_def[signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY].outputs['decoded'].name
     output_secret = tf.get_default_graph().get_tensor_by_name(output_secret_name)
 
-    secrets = []
+    secrets = {}
 
     for filename in tqdm(files_list):
+        stem = pathlib.Path(filename).stem
         image = Image.open(filename).convert("RGB")
         image = np.array(ImageOps.fit(image,(400, 400)),dtype=np.float32)
         image /= 255.
@@ -93,7 +95,7 @@ def decode(input_dir, secret_file):
         secret = np.round(secret)
         secret = secret.tolist()
 
-        secrets.append(secret)
+        secrets[stem] = secret
     
     pickle.dump(secrets, open(secret_file,'wb'))
 
@@ -102,12 +104,11 @@ if __name__ == '__main__':
     parser.add_argument('input_dir')
     parser.add_argument('mode')
     parser.add_argument('secret_file')
-    parser.add_argument('--amount')
     parser.add_argument('--output_dir')
 
     args = parser.parse_args()
 
     if(args.mode == 'encode'):
-        encode(args.input_dir, args.output_dir, args.amount, args.secret_file)
+        encode(args.input_dir, args.output_dir, args.secret_file)
     elif(args.mode == 'decode'):
         decode(args.input_dir, args.secret_file)

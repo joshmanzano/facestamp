@@ -77,8 +77,7 @@ def prepare_resized(input_path, resized_path):
         (transforms.ToPILImage()(image_input)).save(img_path)
 
 if __name__ == '__main__':
-    identities = glob('./test_data/trump-cage/*')
-    print(identities)
+    identities = glob('./test_data/vidtimit/process/*-resized')
     # for identity in identities:
     #     path = pathlib.Path(identity)
     #     full_stem = path.stem
@@ -94,23 +93,54 @@ if __name__ == '__main__':
     #         new_image = str(image).replace('.jpg', '.png')
     #         subprocess.run(f'mv {image} {new_image}',shell=True)
 
+    # for identity in identities:
+    #     path = pathlib.Path(identity)
+    #     resized_path = identity
+    #     full_stem = path.stem
+    #     print(path)
+    #     print(full_stem, resized_path)
+    #     if not os.path.exists(resized_path + '/analysis.bin'):
+    #         analysis = {}
+    #         images = glob(f'{resized_path}/*.png')
+    #         for step, image in enumerate(tqdm(images)):
+    #             path = Path(image)
+    #             full_stem = path.stem + '.png'
+    #             try:
+    #                 secret_input, region_input = utils.get_secret_string(image)
+    #             except Exception as e:
+    #                 print(e)
+    #                 continue
+    #             analysis[image] = (secret_input, region_input)
+    #         print(image, (secret_input, region_input))
+    #         pickle.dump(analysis,open(f'{resized_path}/analysis.bin','wb'))
+
     for identity in identities:
-        path = pathlib.Path(identity)
-        resized_path = identity
-        full_stem = path.stem
-        print(path)
-        print(full_stem, resized_path)
-        if not os.path.exists(resized_path + '/analysis.bin'):
-            analysis = {}
-            images = glob(f'{resized_path}/*.png')
-            for step, image in enumerate(tqdm(images)):
-                path = Path(image)
-                full_stem = path.stem + '.png'
-                try:
-                    secret_input, region_input = utils.get_secret_string(image)
-                except Exception as e:
-                    print(e)
-                    continue
-                analysis[image] = (secret_input, region_input)
-            print(image, (secret_input, region_input))
-            pickle.dump(analysis,open(f'{resized_path}/analysis.bin','wb'))
+        try:
+            new_analysis = {}
+            analysis = pickle.load(open(identity + '/analysis.bin','rb'))
+            for step, a in enumerate(analysis):
+                if('/' in str(a)):
+                    stem = pathlib.Path(a).stem
+                    new_analysis[stem] = analysis[a]
+                else:
+                    new_analysis[a] = analysis[a]
+            pickle.dump(analysis, open(identity + '/old_analysis.bin', 'wb'))
+            pickle.dump(new_analysis, open(identity + '/analysis.bin', 'wb'))
+        except Exception as e:
+            print(e)
+            continue
+
+        # if not os.path.exists(resized_path + '/analysis.bin'):
+        #     analysis = {}
+        #     images = glob(f'{resized_path}/*.png')
+        #     for step, image in enumerate(tqdm(images)):
+        #         path = Path(image)
+        #         full_stem = path.stem + '.png'
+        #         try:
+        #             secret_input, region_input = utils.get_secret_string(image)
+        #         except Exception as e:
+        #             print(e)
+        #             continue
+        #         analysis[image] = (secret_input, region_input)
+        #     print(image, (secret_input, region_input))
+        #     pickle.dump(analysis,open(f'{resized_path}/analysis.bin','wb'))

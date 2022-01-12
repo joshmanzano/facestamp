@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 import utils
 from torchvision import transforms
 from PIL import Image
-from faceswap_test import faceswap_test
+from faceswap_test import facestamp_swap_test, stegastamp_swap_test, steganogan_swap_test
 import argparse
 import os
 from easydict import EasyDict
@@ -90,7 +90,7 @@ def rw_distort_similarity(inputs, rw_score, distortions, args, gt_secret):
         rw_score[distortion].append(test_similarity.item())
     return rw_score
 
-def start_testrun(args, run_results):
+def start_facestamp_testrun(args, run_results):
     run = args.exp_name
     secret_size = args.secret_size
     channel_coding = args.channel_coding
@@ -144,38 +144,114 @@ def start_testrun(args, run_results):
     secrets = []
     results = {} 
 
-    for data in tqdm(dataloader):
-        image_input, mask_input, secret_input, region_input, name_input = data
+    # for data in tqdm(dataloader):
+    #     image_input, mask_input, secret_input, region_input, name_input = data
 
+    #     if(cuda):
+    #         image_input = image_input.cuda()
+    #         secret_input = secret_input.cuda()
+    #         mask_input = mask_input.cuda()
+
+    #     orig_secret_input = secret_input.clone().detach()
+    #     if(channel_coding):
+    #         secret_input = channel_encoder(secret_input)
+
+    #     # encoded_image = image_input + encoder((secret_input, image_input, mask_input))
+    #     residual = encoder((secret_input, image_input, mask_input))
+    #     encoded_image = torch.clip(image_input + residual, 0, 1)
+
+    #     inputs = image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder 
+
+    #     tensor_score.append(tensor_similarity(inputs))
+    #     try:
+    #         test_score.append(test_similarity(inputs))
+    #     except Exception as e:
+    #         print(e)
+    #         continue
+    #     rw_score = rw_distort_similarity(inputs, rw_score, distortions, args, orig_secret_input)
+
+    # results['tensor_score'] = np.mean(tensor_score)
+    # results['test_score'] = np.mean(test_score)
+    # for distortion in distortions:
+    #     rw_score[distortion] = np.mean(rw_score[distortion])
+    # results['rw_score'] = rw_score
+    results = facestamp_swap_test(args.exp_name, encoder, decoder, channel_encoder, channel_decoder, args, results)
+
+    run_results[run] = results
+
+    return run_results
+
+def start_stegastamp_testrun(args, run_results):
+    run = args.exp_name
+    secret_size = args.secret_size
+    channel_coding = args.channel_coding
+    im_size = args.im_height
+    ch_enc = './checkpoints/channel_encoder_s22'
+    ch_dec = './checkpoints/channel_decoder_s22'
+    enc = f'./checkpoints/encoder_current_{run}'
+    dec = f'./checkpoints/decoder_current_{run}'
+    cuda = True
+    dataset = Data('test',args.secret_size,size=(im_size,im_size))
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=0, pin_memory=True)
+
+    cos = torch.nn.CosineSimilarity(dim=1)
+    results = {} 
+
+    if(channel_coding):
+        channel_encoder = model.ChannelEncoder(args.small_secret_size, 'small')
+        channel_decoder = model.ChannelDecoder(args.small_secret_size, 'small')
+        channel_encoder.load_state_dict(torch.load(ch_enc))
+        channel_decoder.load_state_dict(torch.load(ch_dec))
+        channel_encoder.eval()
+        channel_decoder.eval()
         if(cuda):
-            image_input = image_input.cuda()
-            secret_input = secret_input.cuda()
-            mask_input = mask_input.cuda()
+            channel_encoder = channel_encoder.cuda()
+            channel_decoder = channel_decoder.cuda()
+        scale_factor = 4
+    else:
+        scale_factor = 1
+        channel_encoder = None
+        channel_decoder = None
 
-        orig_secret_input = secret_input.clone().detach()
-        if(channel_coding):
-            secret_input = channel_encoder(secret_input)
+    results = stegastamp_swap_test(args.exp_name, channel_encoder, channel_decoder, args, results)
 
-        # encoded_image = image_input + encoder((secret_input, image_input, mask_input))
-        residual = encoder((secret_input, image_input, mask_input))
-        encoded_image = torch.clip(image_input + residual, 0, 1)
+    run_results[run] = results
 
-        inputs = image_input, encoded_image, secret_input, orig_secret_input, cuda, channel_coding, cos, mask_input, encoder, decoder, channel_decoder 
+    return run_results
 
-        tensor_score.append(tensor_similarity(inputs))
-        try:
-            test_score.append(test_similarity(inputs))
-        except Exception as e:
-            print(e)
-            continue
-        rw_score = rw_distort_similarity(inputs, rw_score, distortions, args, orig_secret_input)
+def start_steganogan_testrun(args, run_results):
+    run = args.exp_name
+    secret_size = args.secret_size
+    channel_coding = args.channel_coding
+    im_size = args.im_height
+    ch_enc = './checkpoints/channel_encoder_s22'
+    ch_dec = './checkpoints/channel_decoder_s22'
+    enc = f'./checkpoints/encoder_current_{run}'
+    dec = f'./checkpoints/decoder_current_{run}'
+    cuda = True
+    dataset = Data('test',args.secret_size,size=(im_size,im_size))
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=0, pin_memory=True)
 
-    results['tensor_score'] = np.mean(tensor_score)
-    results['test_score'] = np.mean(test_score)
-    for distortion in distortions:
-        rw_score[distortion] = np.mean(rw_score[distortion])
-    results['rw_score'] = rw_score
-    results = faceswap_test(args.exp_name, encoder, decoder, channel_encoder, channel_decoder, args, results)
+    cos = torch.nn.CosineSimilarity(dim=1)
+    results = {} 
+
+    if(channel_coding):
+        channel_encoder = model.ChannelEncoder(args.small_secret_size, 'small')
+        channel_decoder = model.ChannelDecoder(args.small_secret_size, 'small')
+        channel_encoder.load_state_dict(torch.load(ch_enc))
+        channel_decoder.load_state_dict(torch.load(ch_dec))
+        channel_encoder.eval()
+        channel_decoder.eval()
+        if(cuda):
+            channel_encoder = channel_encoder.cuda()
+            channel_decoder = channel_decoder.cuda()
+        scale_factor = 4
+    else:
+        scale_factor = 1
+        channel_encoder = None
+        channel_decoder = None
+
+    results = steganogan_swap_test(args.exp_name, channel_encoder, channel_decoder, args, results)
 
     run_results[run] = results
 
@@ -202,15 +278,22 @@ if __name__ == '__main__':
 
     run_results = {}
 
+    # Facestamp
     for run in glob('cfg/testing/*.yaml'):
         with open('cfg/base.yaml','r') as base_yaml:
             base_args = EasyDict(yaml.load(base_yaml, Loader=yaml.SafeLoader))
             with open(run, 'r') as run_yaml:
                 run_args = EasyDict(yaml.load(run_yaml, Loader=yaml.SafeLoader))
                 args = replace_args(base_args, run_args)
-
                 utils.set_run(args.exp_name)
-                run_results = start_testrun(args, run_results)
+
+                if(args.exp_name == 'stegastamp'):
+                    run_results = start_stegastamp_testrun(args, run_results)
+                elif(args.exp_name == 'steganogan'):
+                    run_results = start_steganogan_testrun(args, run_results)
+                else:
+                    run_results = start_facestamp_testrun(args, run_results)
+    
     
     timestamp = str(int(time.time()))
     pickle.dump(run_results,open(f'testing_results.bin','wb'))
