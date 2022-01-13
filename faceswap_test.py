@@ -20,8 +20,13 @@ import pickle
 
 base_path = './test_data/vidtimit/process/'
 df_models = json.load(open('df_models.json','r')) 
-test_size = 200
+test_size = 10
 specific = '*.png'
+
+faceswap_test = False
+fsgan_test = False
+simswap_test = False
+compression_test = False
 
 for df_model in df_models:
     input_path = base_path + df_model['source']
@@ -122,6 +127,31 @@ def run_simswap():
             subprocess.run(rename_cmd, shell=True, cwd='./')
             # print(convert_cmd)
 
+def run_fsgan():
+    clear_swapped()
+    # vidtimit
+    for df_model in df_models:
+        name = df_model['name']
+        source = df_model['source']
+        source_images = glob(f'./test_data/vidtimit/process/{source}-enc/*.png')
+        target_dirs = glob(f'./test_data/vidtimit/raw/*')
+        random.shuffle(target_dirs)
+
+        for step, src in enumerate(source_images):
+            filename = pathlib.Path(src).stem + '.png'
+            target_dir = pathlib.Path(random.choice(target_dirs)).stem
+            target_filename = pathlib.Path(random.choice(glob(f'./test_data/vidtimit/raw/{target_dir}/*.jpg'))).stem + '.jpg'
+            convert_cmd = f'/home/luna/anaconda3/envs/fsgan/bin/python3 face_swap_images2images.py ./test_data/vidtimit/raw/{target_dir} -t ./test_data/vidtimit/process/{source}-enc -o ./test_data/vidtimit/process/{source}-enc-swap'
+            print(convert_cmd)
+            # rename_cmd = f'mv ./test_data/vidtimit/process/{source}-enc-swap/result_whole_swapsingle.jpg ./test_data/vidtimit/process/{source}-enc-swap/{filename}'
+
+            subprocess.run(convert_cmd, shell=True, cwd='./')
+            breakpoint()
+            # subprocess.run(rename_cmd, shell=True, cwd='./')
+            # print(convert_cmd)
+
+
+
 def run_compression(suffix, quality):
     ## suffix = enc-swap
     for df_model in df_models:
@@ -164,6 +194,8 @@ def get_test_data(resized_path):
     return test_data 
 
 def create_encoded(encoder, channel_encoder, args, cache_secrets):
+    # for faceswap
+    # vidtimit
     for df_model in df_models:
         print(df_model['name'], df_model['source'])
         output_path = df_model['output_path']
@@ -204,6 +236,14 @@ def create_encoded(encoder, channel_encoder, args, cache_secrets):
 
             digital_copy = transforms.ToPILImage()(encoded_image.squeeze())
             digital_copy.save(f'{output_path}/{full_stem}')
+
+    # for simswap
+    # vidtimit
+    # celeba 
+
+    # for fsgan 
+    # vidtimit
+    # celeba 
 
 def create_encoded_stegastamp(channel_encoder, args, cache_secrets):
     for df_model in df_models:
@@ -261,7 +301,7 @@ def decode_stegastamp(base_path, channel_decoder, args, cache_secrets):
             match_score.append(similarity)
     return match_score
             
-def create_encoded_steganogan(channel_encoder, args, cache_secrets):
+def create_encoded_steganogan(channel_encoder, args, cache_secrets, architecture):
     for df_model in df_models:
         print(df_model['name'], df_model['source'])
         output_path = df_model['output_path']
@@ -287,16 +327,16 @@ def create_encoded_steganogan(channel_encoder, args, cache_secrets):
             print(stem, full_stem)
         pickle.dump(secrets, open('secrets.bin','wb'))
 
-        run_cmd = f'/home/luna/anaconda3/envs/steganogan/bin/python3 run_steganogan.py {temp_path} encode secrets.bin residual --output_dir {output_path}'
+        run_cmd = f'/home/luna/anaconda3/envs/steganogan/bin/python3 run_steganogan.py {temp_path} encode secrets.bin {architecture} --output_dir {output_path}'
 
         subprocess.run(run_cmd, shell=True, cwd='./')
     
-def decode_steganogan(base_path, channel_decoder, args, cache_secrets):
+def decode_steganogan(base_path, channel_decoder, args, cache_secrets, architecture):
     match_score = []
     for df_model in df_models:
         swap_path = df_model[base_path]
         images = glob(f'{swap_path}/*.png')
-        run_cmd = f'/home/luna/anaconda3/envs/steganogan/bin/python3 run_steganogan.py {swap_path} decode secrets.bin residual'
+        run_cmd = f'/home/luna/anaconda3/envs/steganogan/bin/python3 run_steganogan.py {swap_path} decode secrets.bin {architecture}'
         subprocess.run(run_cmd, shell=True, cwd='./')
         secrets = pickle.load(open('secrets.bin', 'rb'))
         for image in tqdm(images):
@@ -408,35 +448,49 @@ def prepare_all_resized():
 def facestamp_swap_test(run, encoder, decoder, channel_encoder, channel_decoder, args, results):
     cache_secrets = {}
     clear_previous()
+    print('Creating encoded...')
     create_encoded(encoder, channel_encoder, args, cache_secrets)
+    print('Computing pre-score...')
     pre_score = decode('output_path', decoder, channel_decoder, args, cache_secrets)
     results['preswap_match'] = pre_score
 
-    run_faceswap()
-    swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
-    results['faceswap_swap_match'] = swap_score
-    compile_examples(run, 'faceswap', residuals=False)
+    if(faceswap_test):
+        run_faceswap()
+        swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
+        results['faceswap_swap_match'] = swap_score
+        compile_examples(run, 'faceswap', residuals=False)
+    
+    if(fsgan_test):
+        print('Running FSGAN...')
+        run_fsgan()
+        swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
+        results['fsgan_swap_match'] = swap_score
+        compile_examples(run, 'fsgan', residuals=False)
 
-    run_compression('enc',80)
-    run_compression('enc-swap',80)
+    if(compression_test):
 
-    pre_score = decode('output_path', decoder, channel_decoder, args, cache_secrets)
-    swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
-    results['preswap_compressed_match'] = pre_score
-    results['faceswap_swap_compressed_match'] = swap_score
+        run_compression('enc',80)
+        run_compression('enc-swap',80)
 
-    run_blur('enc')
-    run_blur('enc-swap')
+        pre_score = decode('output_path', decoder, channel_decoder, args, cache_secrets)
+        swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
+        results['preswap_compressed_match'] = pre_score
+        results['faceswap_swap_compressed_match'] = swap_score
 
-    pre_score = decode('output_path', decoder, channel_decoder, args, cache_secrets)
-    swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
-    results['preswap_blurred_compressed_match'] = pre_score
-    results['faceswap_swap_blurred_compressed_match'] = swap_score
+        run_blur('enc')
+        run_blur('enc-swap')
 
-    run_simswap()
-    swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
-    results['simswap_swap_match'] = swap_score
-    compile_examples(run, 'simswap', residuals=False)
+        pre_score = decode('output_path', decoder, channel_decoder, args, cache_secrets)
+        swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
+        results['preswap_blurred_compressed_match'] = pre_score
+        results['faceswap_swap_blurred_compressed_match'] = swap_score
+
+    if(simswap_test):
+        run_simswap()
+        swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
+        results['simswap_swap_match'] = swap_score
+        compile_examples(run, 'simswap', residuals=False)
+
     # run_compression('enc',40)
     # run_compression('enc-swap',40)
 
@@ -458,38 +512,43 @@ def facestamp_swap_test(run, encoder, decoder, channel_encoder, channel_decoder,
     # results['acc'] = acc
     return results
 
-def steganogan_swap_test(run, channel_encoder, channel_decoder, args, results):
+def steganogan_swap_test(run, channel_encoder, channel_decoder, args, results, architecture):
     cache_secrets = {}
     clear_previous()
-    create_encoded_steganogan(channel_encoder, args, cache_secrets)
-    pre_score = decode_steganogan('output_path', channel_decoder, args, cache_secrets)
+    create_encoded_steganogan(channel_encoder, args, cache_secrets, architecture)
+    pre_score = decode_steganogan('output_path', channel_decoder, args, cache_secrets, architecture)
     results['preswap_match'] = pre_score
 
-    run_faceswap()
-    swap_score = decode_steganogan('swap_path', channel_decoder, args, cache_secrets)
-    results['faceswap_swap_match'] = swap_score
-    compile_examples(run, 'faceswap', residuals=False)
+    if(faceswap_test):
+        run_faceswap()
+        swap_score = decode_steganogan('swap_path', channel_decoder, args, cache_secrets, architecture)
+        results['faceswap_swap_match'] = swap_score
+        compile_examples(run, 'faceswap', residuals=False)
+    
+    if(simswap_test):
+        run_simswap()
+        swap_score = decode_steganogan('swap_path', channel_decoder, args, cache_secrets)
+        results['simswap_swap_match'] = swap_score
+        compile_examples(run, 'simswap', residuals=False)
 
-    run_compression('enc',80)
-    run_compression('enc-swap',80)
+    if(compression_test):
 
-    pre_score = decode_steganogan('output_path', channel_decoder, args, cache_secrets)
-    swap_score = decode_steganogan('swap_path', channel_decoder, args, cache_secrets)
-    results['preswap_compressed_match'] = pre_score
-    results['faceswap_swap_compressed_match'] = swap_score
+        run_compression('enc',80)
+        run_compression('enc-swap',80)
 
-    run_blur('enc')
-    run_blur('enc-swap')
+        pre_score = decode_steganogan('output_path', channel_decoder, args, cache_secrets, architecture)
+        swap_score = decode_steganogan('swap_path', channel_decoder, args, cache_secrets, architecture)
+        results['preswap_compressed_match'] = pre_score
+        results['faceswap_swap_compressed_match'] = swap_score
 
-    pre_score = decode_steganogan('output_path', channel_decoder, args, cache_secrets)
-    swap_score = decode_steganogan('swap_path', channel_decoder, args, cache_secrets)
-    results['preswap_blurred_compressed_match'] = pre_score
-    results['faceswap_swap_blurred_compressed_match'] = swap_score
+        run_blur('enc')
+        run_blur('enc-swap')
 
-    run_simswap()
-    swap_score = decode_steganogan('swap_path', channel_decoder, args, cache_secrets)
-    results['simswap_swap_match'] = swap_score
-    compile_examples(run, 'simswap', residuals=False)
+        pre_score = decode_steganogan('output_path', channel_decoder, args, cache_secrets, architecture)
+        swap_score = decode_steganogan('swap_path', channel_decoder, args, cache_secrets, architecture)
+        results['preswap_blurred_compressed_match'] = pre_score
+        results['faceswap_swap_blurred_compressed_match'] = swap_score
+
 
     return results
 
@@ -497,32 +556,38 @@ def stegastamp_swap_test(run, channel_encoder, channel_decoder, args, results):
     cache_secrets = {}
     clear_previous()
     create_encoded_stegastamp(channel_encoder, args, cache_secrets)
-    run_faceswap()
     pre_score = decode_stegastamp('output_path', channel_decoder, args, cache_secrets)
-    swap_score = decode_stegastamp('swap_path', channel_decoder, args, cache_secrets)
-    results['preswap_match'] = pre_score
-    results['faceswap_swap_match'] = swap_score
-    compile_examples(run, 'faceswap', residuals=False)
-    run_compression('enc',80)
-    run_compression('enc-swap',80)
 
-    pre_score = decode_stegastamp('output_path', channel_decoder, args, cache_secrets)
-    swap_score = decode_stegastamp('swap_path', channel_decoder, args, cache_secrets)
-    results['preswap_compressed_match'] = pre_score
-    results['faceswap_swap_compressed_match'] = swap_score
+    if(faceswap_test):
+        run_faceswap()
+        swap_score = decode_stegastamp('swap_path', channel_decoder, args, cache_secrets)
+        results['preswap_match'] = pre_score
+        results['faceswap_swap_match'] = swap_score
+        compile_examples(run, 'faceswap', residuals=False)
+    
+    if(simswap_test):
+        run_simswap()
+        swap_score = decode_stegastamp('swap_path', channel_decoder, args, cache_secrets)
+        results['simswap_swap_match'] = swap_score
+        compile_examples(run, 'simswap', residuals=False)
+    
+    if(compression_test):
+        run_compression('enc',80)
+        run_compression('enc-swap',80)
 
-    run_blur('enc')
-    run_blur('enc-swap')
+        pre_score = decode_stegastamp('output_path', channel_decoder, args, cache_secrets)
+        swap_score = decode_stegastamp('swap_path', channel_decoder, args, cache_secrets)
+        results['preswap_compressed_match'] = pre_score
+        results['faceswap_swap_compressed_match'] = swap_score
 
-    pre_score = decode_stegastamp('output_path', channel_decoder, args, cache_secrets)
-    swap_score = decode_stegastamp('swap_path', channel_decoder, args, cache_secrets)
-    results['preswap_blurred_compressed_match'] = pre_score
-    results['faceswap_swap_blurred_compressed_match'] = swap_score
+        run_blur('enc')
+        run_blur('enc-swap')
 
-    run_simswap()
-    swap_score = decode_stegastamp('swap_path', channel_decoder, args, cache_secrets)
-    results['simswap_swap_match'] = swap_score
-    compile_examples(run, 'simswap', residuals=False)
+        pre_score = decode_stegastamp('output_path', channel_decoder, args, cache_secrets)
+        swap_score = decode_stegastamp('swap_path', channel_decoder, args, cache_secrets)
+        results['preswap_blurred_compressed_match'] = pre_score
+        results['faceswap_swap_blurred_compressed_match'] = swap_score
+
 
     # run_compression('enc',40)
     # run_compression('enc-swap',40)

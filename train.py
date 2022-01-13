@@ -185,40 +185,41 @@ def main(writer, args, gpu):
         performance = []
         test_performance = []
         test_losses = []
-        for idx, data in enumerate(tqdm(eval_dataloader)):
-            image_input, mask_input, secret_input, region_input, name_input = data
-            if args.cuda:
-                image_input = image_input.cuda()
-                secret_input = secret_input.cuda()
-                mask_input = mask_input.cuda()
-            if args.channel_coding:
-                orig_secret_input = secret_input.clone().detach()
-                secret_input = channel_encoder(secret_input)
-            else:
-                orig_secret_input = None
+        if(args.eval_tuning):
+            for idx, data in enumerate(tqdm(eval_dataloader)):
+                image_input, mask_input, secret_input, region_input, name_input = data
+                if args.cuda:
+                    image_input = image_input.cuda()
+                    secret_input = secret_input.cuda()
+                    mask_input = mask_input.cuda()
+                if args.channel_coding:
+                    orig_secret_input = secret_input.clone().detach()
+                    secret_input = channel_encoder(secret_input)
+                else:
+                    orig_secret_input = None
 
-            if(not args.eval_tuning):
-                encoder.eval()
-                decoder.eval()
+                if(not args.eval_tuning):
+                    encoder.eval()
+                    decoder.eval()
 
-            test_acc, loss = model.eval_model(encoder, decoder, mse, channel_decoder, cos, image_input, mask_input, 
-                    secret_input, args, region_input)
+                test_acc, loss = model.eval_model(encoder, decoder, mse, channel_decoder, cos, image_input, mask_input, 
+                        secret_input, args, region_input)
 
-            if(args.eval_tuning and all_losses):
-                test_losses.append(loss.cpu().item())
-                optimize_loss.zero_grad()
-                loss.backward()
-                optimize_loss.step()
-            
-            encoder.train()
-            decoder.train()
-            
-            test_performance.append(test_acc.cpu().item())
+                if(args.eval_tuning and all_losses):
+                    test_losses.append(loss.cpu().item())
+                    optimize_loss.zero_grad()
+                    loss.backward()
+                    optimize_loss.step()
+                
+                encoder.train()
+                decoder.train()
+                
+                test_performance.append(test_acc.cpu().item())
 
-        test_mean_data, test_std_data = utils.process_test_data(test_performance)
-        writer.add_scalar('summary/test_acc', np.mean(test_mean_data), global_step)
-        test_loss_mean = np.mean(test_losses)
-        writer.add_scalar('train_loss/test_loss', test_loss_mean, global_step)
+            test_mean_data, test_std_data = utils.process_test_data(test_performance)
+            writer.add_scalar('summary/test_acc', np.mean(test_mean_data), global_step)
+            test_loss_mean = np.mean(test_losses)
+            writer.add_scalar('train_loss/test_loss', test_loss_mean, global_step)
 
         encoder.eval()
         decoder.eval()

@@ -231,6 +231,7 @@ def start_steganogan_testrun(args, run_results):
     cuda = True
     dataset = Data('test',args.secret_size,size=(im_size,im_size))
     dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=0, pin_memory=True)
+    architecture = args.architecture
 
     cos = torch.nn.CosineSimilarity(dim=1)
     results = {} 
@@ -251,7 +252,7 @@ def start_steganogan_testrun(args, run_results):
         channel_encoder = None
         channel_decoder = None
 
-    results = steganogan_swap_test(args.exp_name, channel_encoder, channel_decoder, args, results)
+    results = steganogan_swap_test(args.exp_name, channel_encoder, channel_decoder, args, results, architecture)
 
     run_results[run] = results
 
@@ -289,7 +290,7 @@ if __name__ == '__main__':
 
                 if(args.exp_name == 'stegastamp'):
                     run_results = start_stegastamp_testrun(args, run_results)
-                elif(args.exp_name == 'steganogan'):
+                elif('steganogan' in args.exp_name):
                     run_results = start_steganogan_testrun(args, run_results)
                 else:
                     run_results = start_facestamp_testrun(args, run_results)

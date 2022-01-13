@@ -1,0 +1,3 @@
+exp_name: steganogan_basic
+verbose_exp_name: SteganoGAN Basic
+architecture: basic
