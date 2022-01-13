@@ -262,6 +262,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Specify GPU and run')
     parser.add_argument('--gpu')
+    parser.add_argument('--model')
 
     args = parser.parse_args()
 
@@ -270,6 +271,8 @@ if __name__ == '__main__':
     except:
         gpu = str(0)
     
+    model_name = args.model
+
     os.environ['CUDA_VISIBLE_DEVICES'] = gpu
 
     def replace_args(base_args, new_args):
@@ -289,15 +292,18 @@ if __name__ == '__main__':
                 utils.set_run(args.exp_name)
 
                 if(args.exp_name == 'stegastamp'):
-                    run_results = start_stegastamp_testrun(args, run_results)
+                    if(model_name == 'stegastamp'):
+                        run_results = start_stegastamp_testrun(args, run_results)
                 elif('steganogan' in args.exp_name):
-                    run_results = start_steganogan_testrun(args, run_results)
+                    if(model_name == 'steganogan'):
+                        run_results = start_steganogan_testrun(args, run_results)
                 else:
-                    run_results = start_facestamp_testrun(args, run_results)
+                    if(model_name == 'facestamp'):
+                        run_results = start_facestamp_testrun(args, run_results)
     
     
     timestamp = str(int(time.time()))
-    pickle.dump(run_results,open(f'testing_results.bin','wb'))
+    pickle.dump(run_results,open(f'{model_name}_testing_results.bin','wb'))
     print(run_results)
 
 

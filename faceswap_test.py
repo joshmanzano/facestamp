@@ -23,10 +23,13 @@ df_models = json.load(open('df_models.json','r'))
 test_size = 10
 specific = '*.png'
 
-faceswap_test = False
+faceswap_test = True
+simswap_test = True
 fsgan_test = False
-simswap_test = False
-compression_test = False
+compression_test = True 
+blur_test = True 
+
+qualities = range(10, 100, 10)
 
 for df_model in df_models:
     input_path = base_path + df_model['source']
@@ -49,9 +52,13 @@ for df_model in df_models:
     if not os.path.exists(swap_path):
         os.makedirs(swap_path)
 
-    swap_distort_path = base_path + df_model['source'] + '-enc-swap-distort'
-    if not os.path.exists(swap_distort_path):
-        os.makedirs(swap_distort_path)
+    output_compr_path = base_path + df_model['source'] + '-enc-compr'
+    if not os.path.exists(output_compr_path):
+        os.makedirs(output_compr_path)
+
+    swap_compr_path = base_path + df_model['source'] + '-enc-swap-compr'
+    if not os.path.exists(swap_compr_path):
+        os.makedirs(swap_compr_path)
 
     temp_path = base_path + df_model['source'] + '-temp'
     if not os.path.exists(temp_path):
@@ -62,8 +69,9 @@ for df_model in df_models:
     df_model['resized_path'] = resized_path
     df_model['residual_path'] = residual_path
     df_model['output_path'] = output_path
+    df_model['output_compr_path'] = output_compr_path
     df_model['swap_path'] = swap_path
-    df_model['swap_distort_path'] = swap_distort_path
+    df_model['swap_compr_path'] = swap_compr_path
     df_model['temp_path'] = temp_path 
 
 size = 400
@@ -71,13 +79,15 @@ size = 400
 cos = torch.nn.CosineSimilarity(dim=1)
 
 def clear_previous():
+    subprocess.run(['rm -rf ./test_data/vidtimit/pair_data/encoded/*'],shell=True)
     for df_model in df_models:
         output_path = df_model['output_path'] 
         swap_path = df_model['swap_path']
-        swap_distort_path= df_model['swap_distort_path']
+        swap_compr_path = df_model['swap_compr_path']
+        output_compr_path = df_model['output_compr_path']
         residual_path = df_model['residual_path']
         temp_path = df_model['temp_path']
-        files = glob(f'{output_path}/*') + glob(f'{swap_path}/*') + glob(f'{residual_path}/*') + glob(f'{swap_distort_path}/*') + glob(f'{temp_path}/*')
+        files = glob(f'{output_path}/*') + glob(f'{swap_path}/*') + glob(f'{residual_path}/*') + glob(f'{swap_compr_path}/*') + glob(f'{output_compr_path}/*') + glob(f'{temp_path}/*')
         for file in files:
             os.remove(file)
 
@@ -89,10 +99,19 @@ def clear_temp():
             os.remove(file)
 
 def clear_swapped():
+    subprocess.run(['rm -rf ./test_data/vidtimit/pair_data/swapped/*'],shell=True)
     for df_model in df_models:
         swap_path = df_model['swap_path']
-        swap_distort_path = df_model['swap_distort_path']
-        files = glob(f'{swap_path}/*') + glob(f'{swap_distort_path}/*')
+        swap_compr_path = df_model['swap_compr_path']
+        files = glob(f'{swap_path}/*') + glob(f'{swap_compr_path}/*')
+        for file in files:
+            os.remove(file)
+
+def clear_compressed():
+    for df_model in df_models:
+        swap_compr_path = df_model['swap_compr_path']
+        output_compr_path = df_model['output_compr_path']
+        files = glob(f'{swap_compr_path}/*') + glob(f'{output_compr_path}/*')
         for file in files:
             os.remove(file)
 
@@ -109,19 +128,23 @@ def run_faceswap():
 
 def run_simswap():
     clear_swapped()
-    for df_model in df_models:
-        name = df_model['name']
-        source = df_model['source']
-        source_images = glob(f'./test_data/vidtimit/process/{source}-enc/*.png')
-        target_dirs = glob(f'./test_data/vidtimit/raw/*')
-        random.shuffle(target_dirs)
-
-        for step, src in enumerate(source_images):
-            filename = pathlib.Path(src).stem + '.png'
-            target_dir = pathlib.Path(random.choice(target_dirs)).stem
-            target_filename = pathlib.Path(random.choice(glob(f'./test_data/vidtimit/raw/{target_dir}/*.jpg'))).stem + '.jpg'
-            convert_cmd = f'/home/luna/anaconda3/envs/simswap/bin/python3 test_wholeimage_swapsingle.py --crop_size 224 --use_mask --name people --Arc_path ./arcface_model/arcface_checkpoint.tar --pic_b_path ./test_data/vidtimit/process/{source}-enc/{filename} --pic_a_path ./test_data/vidtimit/raw/{target_dir}/{target_filename} --output_path ./test_data/vidtimit/process/{source}-enc-swap --no_simswaplogo'
-            rename_cmd = f'mv ./test_data/vidtimit/process/{source}-enc-swap/result_whole_swapsingle.jpg ./test_data/vidtimit/process/{source}-enc-swap/{filename}'
+    encoded_path = f'./test_data/vidtimit/pair_data/encoded' 
+    target_path = f'./test_data/vidtimit/pair_data/target' 
+    swap_path = f'./test_data/vidtimit/pair_data/swapped' 
+    encoded = glob(f'{encoded_path}/*')
+    for e in encoded:
+        stem = pathlib.Path(e).stem
+        if not os.path.exists(f'{swap_path}/{stem}'):
+            os.makedirs(f'{swap_path}/{stem}')
+        encoded_images = glob(f'{e}/*.png')
+        target_images = glob(f'{target_path}/**/*.png')
+        random.shuffle(target_images)
+        for step, source_filename in enumerate(encoded_images):
+            path = pathlib.Path(source_filename)
+            full_stem = path.stem + path.suffix
+            target_filename = random.choice(target_images)
+            convert_cmd = f'/home/luna/anaconda3/envs/simswap/bin/python3 test_wholeimage_swapsingle.py --crop_size 224 --use_mask --name people --Arc_path ./arcface_model/arcface_checkpoint.tar --pic_b_path {source_filename} --pic_a_path {target_filename} --output_path ./test_data/vidtimit/pair_data/swapped --no_simswaplogo'
+            rename_cmd = f'mv ./test_data/vidtimit/pair_data/swapped/result_whole_swapsingle.jpg ./test_data/vidtimit/pair_data/swapped/{full_stem}'
 
             subprocess.run(convert_cmd, shell=True, cwd='./SimSwap')
             subprocess.run(rename_cmd, shell=True, cwd='./')
@@ -129,43 +152,40 @@ def run_simswap():
 
 def run_fsgan():
     clear_swapped()
-    # vidtimit
-    for df_model in df_models:
-        name = df_model['name']
-        source = df_model['source']
-        source_images = glob(f'./test_data/vidtimit/process/{source}-enc/*.png')
-        target_dirs = glob(f'./test_data/vidtimit/raw/*')
-        random.shuffle(target_dirs)
+    encoded_path = f'./test_data/vidtimit/pair_data/encoded' 
+    target_path = f'./test_data/vidtimit/pair_data/target' 
+    swap_path = f'./test_data/vidtimit/pair_data/swapped' 
+    encoded = glob(f'{encoded_path}/*')
+    for source in encoded:
+        stem = pathlib.Path(source).stem
+        if not os.path.exists(f'{swap_path}/{stem}'):
+            os.makedirs(f'{swap_path}/{stem}')
+        target = random.choice(glob(target_path + '/*'))
+        swap = f'{swap_path}/{stem}'
+        convert_cmd = f'/home/luna/anaconda3/envs/fsgan/bin/python3 face_swap_images2images.py {target} -t {source} -o {swap}'
 
-        for step, src in enumerate(source_images):
-            filename = pathlib.Path(src).stem + '.png'
-            target_dir = pathlib.Path(random.choice(target_dirs)).stem
-            target_filename = pathlib.Path(random.choice(glob(f'./test_data/vidtimit/raw/{target_dir}/*.jpg'))).stem + '.jpg'
-            convert_cmd = f'/home/luna/anaconda3/envs/fsgan/bin/python3 face_swap_images2images.py ./test_data/vidtimit/raw/{target_dir} -t ./test_data/vidtimit/process/{source}-enc -o ./test_data/vidtimit/process/{source}-enc-swap'
-            print(convert_cmd)
-            # rename_cmd = f'mv ./test_data/vidtimit/process/{source}-enc-swap/result_whole_swapsingle.jpg ./test_data/vidtimit/process/{source}-enc-swap/{filename}'
+        subprocess.run(convert_cmd, shell=True, cwd='./')
 
-            subprocess.run(convert_cmd, shell=True, cwd='./')
-            breakpoint()
-            # subprocess.run(rename_cmd, shell=True, cwd='./')
-            # print(convert_cmd)
-
-
-
-def run_compression(suffix, quality):
+def run_compression(quality):
+    clear_compressed()
+    input_suffixes = ['enc', 'enc-swap']
+    output_suffixes = ['enc-compr', 'enc-swap-compr']
     ## suffix = enc-swap
-    for df_model in df_models:
-        name = df_model['name']
-        source = df_model['source']
-        images = glob(f'./test_data/vidtimit/process/{source}-{suffix}/*.png')
-        for image in images:
-            stem = pathlib.Path(image).stem
-            img = Image.open(image)
-            img = test_distort(img, 400, 400, 'jpeg_compression', quality=quality)
-            os.remove(image)
-            img.save(f'./test_data/vidtimit/process/{source}-{suffix}/{stem}.png')
+    for idx, input_suffix in enumerate(input_suffixes):
+        output_suffix = output_suffixes[idx]
+        for df_model in df_models:
+            name = df_model['name']
+            source = df_model['source']
+            images = glob(f'./test_data/vidtimit/process/{source}-{input_suffix}/*.png')
+            for image in images:
+                full_stem = pathlib.Path(image).stem + pathlib.Path(image).suffix
+                img = Image.open(image)
+                img = test_distort(img, 400, 400, 'jpeg_compression', quality=quality)
+                img.save(f'./test_data/vidtimit/process/{source}-{output_suffix}/{full_stem}.png')
 
 def run_blur(suffix):
+    clear_compressed()
+    ## suffix = enc-swap
     ## suffix = enc-swap
     for df_model in df_models:
         name = df_model['name']
@@ -192,6 +212,13 @@ def get_test_data(resized_path):
     test_data = test_data[:test_size]
 
     return test_data 
+
+def get_sampling_data():
+    identities = glob('./test_data/vidtimit/process/*-resized')
+    sampling = random.sample(identities, 20)
+    source_batch = sampling[:10]
+    target_batch = sampling[10:]
+    return source_batch, target_batch
 
 def create_encoded(encoder, channel_encoder, args, cache_secrets):
     # for faceswap
@@ -237,13 +264,58 @@ def create_encoded(encoder, channel_encoder, args, cache_secrets):
             digital_copy = transforms.ToPILImage()(encoded_image.squeeze())
             digital_copy.save(f'{output_path}/{full_stem}')
 
-    # for simswap
+    # simswap and fsgan
     # vidtimit
-    # celeba 
+    source_batch, target_batch = get_sampling_data()
+    for step, target_path in enumerate(target_batch):
+        images = glob(target_path + '/*.png')
+        new_path = f'./test_data/vidtimit/pair_data/target/{step}' 
+        if not os.path.exists(new_path):
+            os.makedirs(new_path)
+        for image in images[:test_size]:
+            path = pathlib.Path(image)
+            full_stem = path.stem + path.suffix
+            subprocess.run([f'cp {image} {new_path}/{full_stem}'],shell=True)
+        
 
-    # for fsgan 
-    # vidtimit
-    # celeba 
+    for step, source_path in enumerate(source_batch):
+        output_path = f'./test_data/vidtimit/pair_data/encoded/{step}' 
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+        test_data = get_test_data(source_path)
+        for data in tqdm(test_data):
+            image = data[0]
+            path = Path(image)
+            stem = path.stem
+            full_stem = stem + '.png'
+            try:
+                image_input = transforms.ToTensor()(Image.open(image))
+            except Exception as e:
+                print(e)
+                breakpoint()
+            secret_input = data[1]
+            region_input = data[2]
+            image_input = image_input[None]
+            secret_input = torch.Tensor(secret_input)[None]
+            mask_input = utils.create_mask_input(image_input, region_input, region_transform=False)
+
+            secret_input = secret_input.cuda()
+            image_input = image_input.cuda()
+            mask_input = mask_input.cuda()
+            cache_secrets[full_stem] = secret_input
+            orig_secret_input = secret_input.clone().detach()
+            if(args.channel_coding):
+                secret_input = channel_encoder(secret_input)
+                secret_input = torch.round(torch.clip(secret_input, 0, 1))
+            
+            residual = encoder((secret_input, image_input, mask_input))
+            (transforms.ToPILImage()(residual.squeeze())).save(f'{residual_path}/{full_stem}')
+            encoded_image = residual + image_input
+
+            digital_copy = transforms.ToPILImage()(encoded_image.squeeze())
+            digital_copy.save(f'{output_path}/{full_stem}')
+
+
 
 def create_encoded_stegastamp(channel_encoder, args, cache_secrets):
     for df_model in df_models:
@@ -324,7 +396,6 @@ def create_encoded_steganogan(channel_encoder, args, cache_secrets, architecture
 
             secrets[stem] = secret_input.squeeze().tolist()
             subprocess.run([f'cp {image} {temp_path}/{full_stem}'],shell=True)
-            print(stem, full_stem)
         pickle.dump(secrets, open('secrets.bin','wb'))
 
         run_cmd = f'/home/luna/anaconda3/envs/steganogan/bin/python3 run_steganogan.py {temp_path} encode secrets.bin {architecture} --output_dir {output_path}'
@@ -356,6 +427,37 @@ def decode_steganogan(base_path, channel_decoder, args, cache_secrets, architect
             match_similarity = cos(analyzed, decoded)
             similarity = match_similarity.item()
             match_score.append(similarity)
+    return match_score
+
+def decode_other(base_path, decoder, channel_decoder, args, cache_secrets):
+    match_score = []
+    unreadable = 0
+    failed = 0
+
+    images = glob(f'{base_path}/*.png')
+    for image in tqdm(images):
+        path = Path(image)
+        full_stem = path.stem + path.suffix
+        try:
+            image_input = transforms.ToTensor()(Image.open(image))
+        except:
+            failed += 1
+            continue
+        image_input = image_input.cuda()
+        try:
+            analyzed, region = utils.get_secret_string(image)
+        except:
+            unreadable += 1
+            continue
+        analyzed = torch.Tensor(analyzed).cuda()[None]
+        decoded = decoder(image_input[None])
+        if(args.channel_coding):
+            decoded = channel_decoder(decoded)
+        decoded = torch.round(torch.clip(decoded, 0, 1))
+        match_similarity = cos(analyzed, decoded)
+        similarity = match_similarity.item()
+        match_score.append(similarity)
+
     return match_score
 
 def decode(base_path, decoder, channel_decoder, args, cache_secrets):
@@ -459,6 +561,13 @@ def facestamp_swap_test(run, encoder, decoder, channel_encoder, channel_decoder,
         swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
         results['faceswap_swap_match'] = swap_score
         compile_examples(run, 'faceswap', residuals=False)
+
+    if(simswap_test):
+        run_simswap()
+        swapped_path = './test_data/vidtimit/pair_data/swapped'
+        swap_score = decode_other(swapped_path, decoder, channel_decoder, args, cache_secrets)
+        results['simswap_swap_match'] = swap_score
+        compile_examples(run, 'simswap', residuals=False)
     
     if(fsgan_test):
         print('Running FSGAN...')
@@ -468,28 +577,13 @@ def facestamp_swap_test(run, encoder, decoder, channel_encoder, channel_decoder,
         compile_examples(run, 'fsgan', residuals=False)
 
     if(compression_test):
-
-        run_compression('enc',80)
-        run_compression('enc-swap',80)
-
-        pre_score = decode('output_path', decoder, channel_decoder, args, cache_secrets)
-        swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
-        results['preswap_compressed_match'] = pre_score
-        results['faceswap_swap_compressed_match'] = swap_score
-
-        run_blur('enc')
-        run_blur('enc-swap')
-
-        pre_score = decode('output_path', decoder, channel_decoder, args, cache_secrets)
-        swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
-        results['preswap_blurred_compressed_match'] = pre_score
-        results['faceswap_swap_blurred_compressed_match'] = swap_score
-
-    if(simswap_test):
-        run_simswap()
-        swap_score = decode('swap_path', decoder, channel_decoder, args, cache_secrets)
-        results['simswap_swap_match'] = swap_score
-        compile_examples(run, 'simswap', residuals=False)
+        for quality in qualities:
+            quality = int(quality)
+            run_compression(quality)
+            pre_score = decode('output_compr_path', decoder, channel_decoder, args, cache_secrets)
+            swap_score = decode('swap_compr_path', decoder, channel_decoder, args, cache_secrets)
+            results[f'preswap_compressed_{quality}_match'] = pre_score
+            results[f'faceswap_swap_compressed_{quality}_match'] = swap_score
 
     # run_compression('enc',40)
     # run_compression('enc-swap',40)
@@ -532,22 +626,13 @@ def steganogan_swap_test(run, channel_encoder, channel_decoder, args, results, a
         compile_examples(run, 'simswap', residuals=False)
 
     if(compression_test):
-
-        run_compression('enc',80)
-        run_compression('enc-swap',80)
-
-        pre_score = decode_steganogan('output_path', channel_decoder, args, cache_secrets, architecture)
-        swap_score = decode_steganogan('swap_path', channel_decoder, args, cache_secrets, architecture)
-        results['preswap_compressed_match'] = pre_score
-        results['faceswap_swap_compressed_match'] = swap_score
-
-        run_blur('enc')
-        run_blur('enc-swap')
-
-        pre_score = decode_steganogan('output_path', channel_decoder, args, cache_secrets, architecture)
-        swap_score = decode_steganogan('swap_path', channel_decoder, args, cache_secrets, architecture)
-        results['preswap_blurred_compressed_match'] = pre_score
-        results['faceswap_swap_blurred_compressed_match'] = swap_score
+        for quality in qualities:
+            quality = int(quality)
+            run_compression(quality)
+            pre_score = decode_steganogan('output_compr_path', channel_decoder, args, cache_secrets)
+            swap_score = decode_steganogan('swap_compr_path', channel_decoder, args, cache_secrets)
+            results[f'preswap_compressed_{quality}_match'] = pre_score
+            results[f'faceswap_swap_compressed_{quality}_match'] = swap_score
 
 
     return results
@@ -572,21 +657,13 @@ def stegastamp_swap_test(run, channel_encoder, channel_decoder, args, results):
         compile_examples(run, 'simswap', residuals=False)
     
     if(compression_test):
-        run_compression('enc',80)
-        run_compression('enc-swap',80)
-
-        pre_score = decode_stegastamp('output_path', channel_decoder, args, cache_secrets)
-        swap_score = decode_stegastamp('swap_path', channel_decoder, args, cache_secrets)
-        results['preswap_compressed_match'] = pre_score
-        results['faceswap_swap_compressed_match'] = swap_score
-
-        run_blur('enc')
-        run_blur('enc-swap')
-
-        pre_score = decode_stegastamp('output_path', channel_decoder, args, cache_secrets)
-        swap_score = decode_stegastamp('swap_path', channel_decoder, args, cache_secrets)
-        results['preswap_blurred_compressed_match'] = pre_score
-        results['faceswap_swap_blurred_compressed_match'] = swap_score
+        for quality in qualities:
+            quality = int(round(quality))
+            run_compression(quality)
+            pre_score = decode_stegastamp('output_compr_path', channel_decoder, args, cache_secrets)
+            swap_score = decode_stegastamp('swap_compr_path', channel_decoder, args, cache_secrets)
+            results[f'preswap_compressed_{quality}_match'] = pre_score
+            results[f'faceswap_swap_compressed_{quality}_match'] = swap_score
 
 
     # run_compression('enc',40)

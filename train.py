@@ -265,8 +265,9 @@ def main(writer, args, gpu):
         utils.create_barh(writer, 'eval_graph/fake_distortions','Fake Distortions', 'Accuracy', fake_distortions, fake_mean_data, epoch)
         writer.add_scalar('summary/fake_dist_acc', np.mean(fake_mean_data), global_step)
 
-        test_mean = np.mean(test_mean_data) * 100
-        test_std = np.mean(test_std_data) * 100
+        if(args.eval_tuning):
+            test_mean = np.mean(test_mean_data) * 100
+            test_std = np.mean(test_std_data) * 100
         train_mean = np.mean(train_acc_arr) * 100
         train_std = np.std(train_acc_arr) * 100
         real_mean = np.mean(real_mean_data) * 100
@@ -277,18 +278,6 @@ def main(writer, args, gpu):
         encoder.train()
         decoder.train()
 
-        ## StarGAN evaluation
-        enc = f'{args.checkpoints_path}encoder_current_{args.exp_name}'
-        dec = f'{args.checkpoints_path}decoder_current_{args.exp_name}'
-        ch_enc = args.channel_encoder
-        ch_dec = args.channel_decoder
-
-        # if(args.stargan_eval):
-        #     results = run_stargan_eval(enc, dec, ch_enc, ch_dec, args.channel_coding)
-        #     print(results)
-        #     writer.add_scalar('stargan_eval/test_real', np.mean(results['test_untransformed'][:3]), global_step)
-        #     writer.add_scalar('stargan_eval/test_fake', np.mean(results['test_transformed'][:3]), global_step)
-        
         if(not all_losses and train_mean > 90):
             print('All losses will now be applied.')
             all_losses = True
@@ -296,7 +285,8 @@ def main(writer, args, gpu):
         epoch += 1
         print(f'epoch = {epoch}\nstep = {global_step}')
         print('avg_train_acc = %.2f (%.2f)' % (train_mean, train_std))
-        print('avg_test_acc = %.2f (%.2f)' % (test_mean, test_std))
+        if(args.eval_tuning):
+            print('avg_test_acc = %.2f (%.2f)' % (test_mean, test_std))
         print('avg_real_acc = %.2f (%.2f)' % (real_mean, real_std))
         print('avg_fake_acc = %.2f (%.2f)' % (fake_mean, fake_std))
 
