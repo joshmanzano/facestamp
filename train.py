@@ -65,7 +65,7 @@ def main(writer, args, gpu):
             channel_encoder = channel_encoder.cuda()
             channel_decoder = channel_decoder.cuda()
     
-    if(args.distortion_method == 'network'):
+    if(args.distortion_method == 'network' or args.distortion_method == 'all'):
         attacker = model.AttackNet(args.im_height,args.im_width)
         attacker.apply(init_weights)
         if(args.cuda):
@@ -104,7 +104,7 @@ def main(writer, args, gpu):
     g_vars = [{'params': encoder.parameters()},
               {'params': decoder.parameters()}]
 
-    if(args.distortion_method == 'network'):
+    if(args.distortion_method == 'network' or args.distortion_method == 'all'):
         g_vars.append({'params': attacker.parameters()})
 
     optimize_loss = optim.Adam(g_vars, lr=args.lr)
