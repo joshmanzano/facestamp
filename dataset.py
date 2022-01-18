@@ -20,9 +20,9 @@ class Data(Dataset):
         self.secret_size = secret_size
         self.size = size
         self.data_list = pickle.load(open(f'{self.data_path}/partition.pkl','rb'))[partition]
-        if(partition == 'test'):
+        # if(partition == 'test'):
             # self.data_list = self.data_list[:int(len(self.data_list) * 0.2)]
-            self.data_list = self.data_list[:3]
+            # self.data_list = self.data_list[:3]
         self.analysis_data = pickle.load(open(f'{self.data_path}/analysis_data.pkl', 'rb'))
         self.to_tensor = transforms.ToTensor()
 
@@ -47,10 +47,17 @@ class Data(Dataset):
         return len(self.data_list)
         
 if __name__ == '__main__':
-    dataset = Data('train', secret_size=14, size=(400, 400))
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0, pin_memory=True)
-    print(len(dataset))
-    dataset = Data('eval', secret_size=14, size=(400, 400))
-    print(len(dataset))
-    dataset = Data('test', secret_size=14, size=(400, 400))
-    print(len(dataset))
+    # dataset = Data('train', secret_size=14, size=(400, 400))
+    # dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=0, pin_memory=True)
+    # print(len(dataset))
+    # dataset = Data('eval', secret_size=14, size=(400, 400))
+    # print(len(dataset))
+    # dataset = Data('test', secret_size=14, size=(400, 400))
+    # print(len(dataset))
+    data_list = pickle.load(open('./train_data/partition.pkl','rb'))['test']
+    analysis_data = pickle.load(open('./train_data/analysis_data.pkl', 'rb'))
+    random.shuffle(data_list)
+    analysis = analysis_data[data_list[0]]
+    filename = str(f'./train_data/images/{data_list[0]}.png')
+    print(utils.convert_secret(analysis[0]))
+    print(filename)

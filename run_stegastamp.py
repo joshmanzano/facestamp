@@ -66,7 +66,7 @@ def encode(input_dir, output_dir, secret_file):
 def decode(input_dir, secret_file):
     model = 'StegaStamp/saved_models/stegastamp_pretrained'
 
-    files_list = glob(input_dir + '/*.png')
+    files_list = glob(input_dir + '/*.png') + glob(input_dir + '/*.jpg') 
 
     sess = tf.InteractiveSession(graph=tf.Graph())
 

@@ -1,0 +1,3 @@
+exp_name: adaptive_training 
+verbose_exp_name: Adaptive Training (Network + Real-world)
+distortion_method: all

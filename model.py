@@ -300,6 +300,11 @@ def test_distort(encoded_image, im_height, im_width, distortion, quality=80):
         encoded_image = transforms.ToTensor()(encoded_image).cpu()
         encoded_image = K.augmentation.RandomGaussianBlur((3, 3), (1, 3.0), p=1.)(encoded_image[None])
         encoded_image = transforms.ToPILImage()(encoded_image.squeeze())
+    elif(distortion == 'color_manipulation'):
+        encoded_image = transforms.ToTensor()(encoded_image).cpu()
+        encoded_image = K.augmentation.ColorJitter( 0.3, ( 0.5, 1.5), 0.1, 0.1, p=1.)(encoded_image[None])
+        encoded_image = transforms.ToPILImage()(encoded_image.squeeze())
+
     return encoded_image
 
 def distort(args, encoded_image, distortion='none'):
@@ -533,7 +538,10 @@ def build_model(encoder, decoder, channel_decoder, attacker, cos, mse, orig_secr
 
     # attack image with distortions to improve robustness (trains encoder and decoder)
     if(not args.distortion_method == 'none'):
-        if(args.distortion_method == 'network'):
+        if(args.distortion_method == 'all'):
+            adv_image = attacker(encoded_image)
+            adv_image = distort(args, adv_image, 'rw_distortion')
+        elif(args.distortion_method == 'network'):
             adv_image = attacker(encoded_image)
         elif(args.distortion_method == 'rw_distortion'):
             adv_image = distort(args, encoded_image, 'rw_distortion')

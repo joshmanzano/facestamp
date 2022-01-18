@@ -44,7 +44,7 @@ def decode(input_dir, secret_file, architecture):
     """Given loads a pretrained pickle, encodes the image with it."""
     secrets = {}
     steganogan = get_steganogan(architecture)
-    images = glob(input_dir + '/*.png')
+    images = glob(input_dir + '/*.png') + glob(input_dir + '/*.jpg')
     for image in tqdm(images):
         decoded = steganogan.decode(image)
         decoded = [int(i) for i in decoded]
