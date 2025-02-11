@@ -159,7 +159,6 @@ cython_debug/
 /logs/
 /test_logs/
 *.png
-*.jpg
 /PerceptualSimilarity/
 dataset/*
 faceset/*
